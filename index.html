@@ -7,7 +7,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* СОХРАНЯЕМ ИМБО ИНТЕРФЕЙС */
         :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3; }
         body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -20,29 +19,20 @@
         .nav-tabs button.active { background: var(--blue); }
 
         #main-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0e1621; }
         
-        .msg { padding: 10px 14px; border-radius: 12px; max-width: 75%; background: #182533; align-self: flex-start; word-wrap: break-word; }
+        .msg { padding: 10px 14px; border-radius: 12px; max-width: 75%; background: #182533; align-self: flex-start; word-wrap: break-word; position: relative; }
         .msg.my { background: var(--accent); align-self: flex-end; }
+        .msg small { color: var(--blue); font-size: 10px; display: block; margin-bottom: 4px; }
 
         .list-item { background: #242f3d; padding: 12px; margin: 5px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
         .badge { background: #f44336; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 5px; display: none; }
 
-        .input-area { background: var(--panel); padding: 15px; display: none; gap: 10px; }
+        .input-area { background: var(--panel); padding: 15px; display: flex; gap: 10px; }
         input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 8px; outline: none; }
         
-        /* Кнопка ПЛЮСИК с анимацией */
-        #plus-btn { 
-            background: var(--blue); 
-            border: none; 
-            color: white; 
-            width: 30px; height: 30px; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            transition: background 0.2s;
-        }
+        #plus-btn { background: var(--blue); border: none; color: white; width: 35px; height: 35px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
         .btn-clicked { background: gray !important; }
-
         button.send-btn { background: var(--blue); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
@@ -58,15 +48,15 @@
 
     <div class="sidebar">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <b id="myLabel">@...</b>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="searchInp" placeholder="Найти @..." style="width: 100px; font-size: 12px; padding: 5px;">
+            <b id="myLabel" style="color: var(--blue)">@...</b>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="searchInp" placeholder="Найти @ник..." style="width: 110px; font-size: 12px; padding: 8px; border-radius: 8px; background: #242f3d; border:none; color:white;">
                 <button id="plus-btn" onclick="handlePlusClick()">+</button>
             </div>
         </div>
         <div class="nav-tabs">
-            <button id="tab-chats" class="active" onclick="switchTab('chats')">Чаты</button>
-            <button id="tab-friends" onclick="showFriendsTab()">Друзья</button>
+            <button id="tab-chats" class="active" onclick="openGlobal()">Общий Чат</button>
+            <button id="tab-friends" onclick="switchTab('friends')">Друзья</button>
             <button id="tab-reqs" onclick="switchTab('reqs')">Заявки <span id="req-count" class="badge">0</span></button>
         </div>
     </div>
@@ -78,7 +68,7 @@
     </div>
 
     <div class="input-area" id="chat-bar">
-        <input type="text" id="mInput" placeholder="Ваше сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <input type="text" id="mInput" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
         <button class="send-btn" onclick="sendMessage()">➤</button>
     </div>
 
@@ -88,14 +78,15 @@
         const db = firebase.database();
 
         let myNick = localStorage.getItem('chat_nick');
-        let currentPeer = null;
+        let currentPeer = "global"; // По умолчанию общий чат
 
         if (!myNick) { 
             document.getElementById('auth').style.display = 'flex'; 
         } else { 
             document.getElementById('myLabel').innerText = "@" + myNick;
-            db.ref('users/' + myNick).set(true); // Регистрируем ник в системе
+            db.ref('users/' + myNick).set(true); 
             initApp();
+            openGlobal();
         }
 
         function login() {
@@ -105,13 +96,12 @@
 
         function handlePlusClick() {
             const btn = document.getElementById('plus-btn');
-            btn.classList.add('btn-clicked'); // Становится серым
-            setTimeout(() => btn.classList.remove('btn-clicked'), 1000); // Возвращается через секунду
+            btn.classList.add('btn-clicked');
+            setTimeout(() => btn.classList.remove('btn-clicked'), 1000);
             sendRequest();
         }
 
         function initApp() {
-            // Слушаем заявки и обновляем счетчик в реальном времени
             db.ref('requests/' + myNick).on('value', (s) => {
                 const count = s.numChildren();
                 const badge = document.getElementById('req-count');
@@ -119,20 +109,17 @@
                 badge.style.display = count > 0 ? 'inline' : 'none';
                 renderRequests(s);
             });
+            // Постоянно обновляем список друзей в фоне
+            db.ref('friends/' + myNick).on('value', renderFriendsList);
         }
 
         function sendRequest() {
             let target = document.getElementById('searchInp').value.replace('@', '').trim();
             if (!target || target === myNick) return;
-
-            // Проверяем наличие пользователя и отправляем заявку
-            db.ref('users/' + target).once('value', (s) => {
-                if (s.exists()) {
-                    db.ref('requests/' + target + '/' + myNick).set(true);
-                    alert("Заявка отправлена @"+target);
-                    document.getElementById('searchInp').value = "";
-                } else { alert("Пользователь @"+target+" еще не пользуется LiteGram"); }
-            });
+            // Шлем заявку напрямую. Если пользователя нет, он увидит ее, когда зайдет.
+            db.ref('requests/' + target + '/' + myNick).set(true);
+            alert("Заявка отправлена пользователю @" + target);
+            document.getElementById('searchInp').value = "";
         }
 
         function renderRequests(snap) {
@@ -150,39 +137,45 @@
         function acceptFriend(name) {
             db.ref('friends/' + myNick + '/' + name).set(true);
             db.ref('friends/' + name + '/' + myNick).set(true);
-            db.ref('requests/' + myNick + '/' + name).remove(); // Удаляем из заявок
-            alert("Теперь вы друзья с @" + name);
+            db.ref('requests/' + myNick + '/' + name).remove();
+            alert("Вы добавили @" + name);
             switchTab('friends');
         }
 
-        function showFriendsTab() {
-            switchTab('friends');
+        function renderFriendsList(s) {
             const view = document.getElementById('friends-view');
             view.innerHTML = "<h4 style='margin:15px'>Ваши друзья:</h4>";
-            db.ref('friends/' + myNick).once('value', (s) => {
-                s.forEach((child) => {
-                    let name = child.key;
-                    view.innerHTML += `<div class="list-item">
-                        <span>@${name}</span>
-                        <button onclick="openPrivateChat('${name}')" style="background:var(--blue); border:none; color:white; padding:5px 10px; border-radius:5px;">Чат</button>
-                    </div>`;
-                });
+            s.forEach((child) => {
+                let name = child.key;
+                view.innerHTML += `<div class="list-item">
+                    <span>@${name}</span>
+                    <button onclick="openPrivateChat('${name}')" style="background:var(--blue); border:none; color:white; padding:5px 10px; border-radius:5px;">Чат</button>
+                </div>`;
             });
+        }
+
+        function openGlobal() {
+            currentPeer = "global";
+            switchTab('chats');
+            listenToChat('global_messages');
         }
 
         function openPrivateChat(name) {
             currentPeer = name;
             switchTab('chats');
-            document.getElementById('chat-bar').style.display = 'flex';
-            document.getElementById('msgs').innerHTML = "";
-            
             let chatId = [myNick, name].sort().join('___');
-            db.ref('chats/' + chatId).off(); 
-            db.ref('chats/' + chatId).limitToLast(100).on('child_added', (snap) => {
+            listenToChat('chats/' + chatId);
+        }
+
+        function listenToChat(path) {
+            document.getElementById('msgs').innerHTML = "";
+            db.ref(path).off(); 
+            db.ref(path).limitToLast(50).on('child_added', (snap) => {
                 const data = snap.val();
                 const d = document.createElement('div');
-                d.className = `msg ${data.u === myNick ? 'my' : ''}`;
-                d.innerText = data.m;
+                const isMy = data.u === myNick;
+                d.className = `msg ${isMy ? 'my' : ''}`;
+                d.innerHTML = `<small>${data.u}</small>${data.m}`;
                 document.getElementById('msgs').appendChild(d);
                 document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
             });
@@ -190,9 +183,15 @@
 
         function sendMessage() {
             const inp = document.getElementById('mInput');
-            if (!inp.value || !currentPeer) return;
-            let chatId = [myNick, currentPeer].sort().join('___');
-            db.ref('chats/' + chatId).push({ u: myNick, m: inp.value, t: Date.now() });
+            if (!inp.value.trim()) return;
+            
+            let path = currentPeer === "global" ? 'global_messages' : 'chats/' + [myNick, currentPeer].sort().join('___');
+            
+            db.ref(path).push({
+                u: myNick,
+                m: inp.value,
+                t: Date.now()
+            });
             inp.value = "";
         }
 
@@ -200,10 +199,10 @@
             document.getElementById('msgs').style.display = t === 'chats' ? 'flex' : 'none';
             document.getElementById('friends-view').style.display = t === 'friends' ? 'block' : 'none';
             document.getElementById('reqs-view').style.display = t === 'reqs' ? 'block' : 'none';
-            document.getElementById('chat-bar').style.display = (t === 'chats' && currentPeer) ? 'flex' : 'none';
             
             document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-' + t).classList.add('active');
+            if(t !== 'chats') document.getElementById('tab-' + t).classList.add('active');
+            else document.getElementById('tab-chats').classList.add('active');
         }
     </script>
 </body>
