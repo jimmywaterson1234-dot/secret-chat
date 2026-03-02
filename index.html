@@ -3,106 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiteGram Fix</title>
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <title>LiteGram Final</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --bg: #0e1621; --panel: #17212b; --text: #ffffff; --accent: #2b5278; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        .header { background: var(--panel); padding: 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #000; }
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #0e1621; }
-        .msg { padding: 10px; border-radius: 10px; background: #182533; max-width: 80%; align-self: flex-start; }
-        .msg.my { align-self: flex-end; background: var(--accent); }
-        .input-area { background: var(--panel); padding: 10px; display: flex; gap: 10px; }
-        input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 8px; outline: none; }
-        button { background: #50a2e3; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-        #auth { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --text: #ffffff; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Экран входа */
+        #auth { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+        .auth-card { background: var(--panel); padding: 30px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Шапка */
+        .header { background: var(--panel); padding: 15px; border-bottom: 1px solid #000; display: flex; justify-content: space-between; align-items: center; }
+        .status-on { color: #4caf50; font-size: 12px; font-weight: bold; }
+
+        /* Список сообщений */
+        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); }
+        .msg { background: #182533; padding: 10px 14px; border-radius: 12px; max-width: 80%; align-self: flex-start; position: relative; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        .msg.my { background: var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .msg small { color: #40a7e3; font-weight: bold; display: block; margin-bottom: 2px; font-size: 11px; }
+
+        /* Поле ввода */
+        .input-area { background: var(--panel); padding: 12px; display: flex; gap: 10px; align-items: center; }
+        input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 10px; outline: none; font-size: 16px; }
+        button { background: #50a2e3; border: none; color: white; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        
+        /* Поиск */
+        .search-bar { background: #0e1621; padding: 5px 15px; font-size: 13px; border-bottom: 1px solid #17212b; }
     </style>
 </head>
 <body>
 
-    <div id="auth" style="display: none;">
-        <h2>LiteGram</h2>
-        <input type="text" id="nick" placeholder="Никнейм" style="width: 250px; margin-bottom: 10px;">
-        <button onclick="login()">Войти</button>
+    <div id="auth">
+        <div class="auth-card">
+            <h2 style="color: #50a2e3; margin-top: 0;">LiteGram</h2>
+            <input type="text" id="nick" placeholder="Ваш никнейм" style="width: 90%; margin-bottom: 10px;">
+            <input type="password" id="pass" placeholder="Пароль (любой)" style="width: 90%; margin-bottom: 20px;">
+            <button onclick="login()" style="width: 100%;">ВОЙТИ</button>
+        </div>
     </div>
 
     <div class="header">
-        <span id="userTitle">Чат</span>
-        <span id="netStatus" style="color: orange;">Подключение...</span>
+        <span id="displayNick">LiteGram</span>
+        <span class="status-on">● Online</span>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="search" placeholder="Поиск ника..." oninput="searchUser()" style="font-size: 12px; padding: 5px;">
+        <div id="searchRes" style="color: #40a7e3; margin-top: 5px;"></div>
     </div>
 
     <div id="msgs"></div>
-    <div id="typing" style="font-size: 12px; color: #50a2e3; padding-left: 15px; height: 15px;"></div>
 
     <div class="input-area">
-        <input type="text" id="mInput" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') send()">
-        <button onclick="send()"> SEND </button>
+        <input type="text" id="mInput" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') send()">
+        <button onclick="send()">➤</button>
     </div>
 
     <script>
-        // Используем проверенные и рабочие relay-серверы
-        const peers = [
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://gunjs.herokuapp.com/gun',
-            'https://www.verisart.com/gun'
-        ];
+        // Инициализация с твоей ссылкой
+        const firebaseConfig = {
+            databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" 
+        };
         
-        const gun = Gun({ peers: peers, localStorage: true });
-
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
         let myNick = localStorage.getItem('chat_nick');
-        if(!myNick) {
-            document.getElementById('auth').style.display = 'flex';
-        } else {
-            document.getElementById('userTitle').innerText = "@" + myNick;
+
+        if(myNick) {
+            document.getElementById('auth').style.display = 'none';
+            document.getElementById('displayNick').innerText = "@" + myNick;
             startChat();
         }
 
         function login() {
             const n = document.getElementById('nick').value;
-            if(n) {
+            const p = document.getElementById('pass').value;
+            if(n.trim() && p.trim()) {
                 localStorage.setItem('chat_nick', n);
+                localStorage.setItem('chat_pass', p);
                 location.reload();
             }
         }
 
         function startChat() {
-            // Проверка статуса сети
-            gun.on('hi', () => {
-                document.getElementById('netStatus').innerText = "● Online";
-                document.getElementById('netStatus').style.color = "#4caf50";
-            });
+            // Сохраняем пользователя в список для поиска
+            db.ref('users/' + myNick).set(true);
 
-            const chat = gun.get('global-chat-v100'); // Новая комната
-
-            // Загрузка и прослушивание сообщений
-            chat.map().on((data, id) => {
-                if(!data || !data.m) return;
-                
-                // Проверка, не отрисовано ли уже это сообщение
-                if(document.getElementById(id)) return;
-
+            // Получение сообщений в реальном времени
+            db.ref('messages').limitToLast(100).on('child_added', (snap) => {
+                const data = snap.val();
                 const d = document.createElement('div');
-                d.id = id;
                 const isMy = data.u === myNick;
                 d.className = `msg ${isMy ? 'my' : ''}`;
-                d.innerHTML = `<small style="opacity:0.6">${data.u}</small><br>${data.m}`;
-                
-                const box = document.getElementById('msgs');
-                box.appendChild(d);
-                box.scrollTop = box.scrollHeight;
+                d.innerHTML = `<small>${data.u}</small>${data.m}`;
+                document.getElementById('msgs').appendChild(d);
+                document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
             });
+        }
 
-            window.send = function() {
-                const input = document.getElementById('mInput');
-                if(input.value.trim() === "") return;
+        function send() {
+            const input = document.getElementById('mInput');
+            if(!input.value.trim()) return;
+            
+            db.ref('messages').push({
+                u: myNick,
+                m: input.value,
+                t: Date.now()
+            });
+            input.value = "";
+        }
 
-                chat.set({
-                    u: myNick,
-                    m: input.value,
-                    t: Date.now()
-                });
-                input.value = "";
-            };
+        function searchUser() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const resDiv = document.getElementById('searchRes');
+            resDiv.innerText = "";
+            if(q.length < 2) return;
+
+            db.ref('users').once('value', (snap) => {
+                const users = snap.val();
+                for(let name in users) {
+                    if(name.toLowerCase().includes(q)) {
+                        resDiv.innerText = "Найден: " + name;
+                    }
+                }
+            });
         }
     </script>
 </body>
