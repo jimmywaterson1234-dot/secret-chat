@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Sigma OS</title>
+    <title>Spark Sigma Classic</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         :root {
             --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3;
-            --text: #ffffff; --my-msg: #2b5278; --other-msg: #182533; --sigma: linear-gradient(45deg, #ffd700, #ffa500);
+            --text: #ffffff; --my-msg: #2b5278; --other-msg: #182533;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
         
@@ -18,44 +18,51 @@
         #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.3; z-index: 0; pointer-events: none; }
         #app { display: flex; height: 100dvh; width: 100vw; position: relative; flex-direction: column; z-index: 10; }
 
-        .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; z-index: 100; }
+        /* Шапка */
+        .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
+        .header b { font-size: 18px; }
 
         /* Список чатов */
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 500; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
-        .chat-item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1c2835; cursor: pointer; }
-        .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; }
+        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #1c2835; cursor: pointer; }
+        .ava-msg { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: var(--accent); }
 
-        /* Чат */
+        /* Окно чата */
         #chatMain { display: none; flex-direction: column; height: 100%; width: 100%; position: relative; z-index: 600; background: transparent; }
         #chatMain.active { display: flex; }
-        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
 
-        /* Сообщения */
+        /* Сообщения (Пузыри) */
         .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; margin-bottom: 2px; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 8px 14px; border-radius: 18px; font-size: 15px; position: relative; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        
+        .bubble { 
+            padding: 8px 12px; border-radius: 16px; font-size: 15px; position: relative; word-wrap: break-word; 
+            display: flex; flex-direction: column;
+        }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
-        .msg-author { font-size: 12px; color: var(--blue); font-weight: bold; margin-bottom: 2px; margin-left: 8px; display: block; }
-        .fwd-tag { font-size: 11px; color: #8ab4f8; font-style: italic; margin-bottom: 4px; border-left: 2px solid var(--blue); padding-left: 6px; display: block; }
 
-        /* Поле ввода */
+        .msg-info { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; align-self: flex-end; }
+        .msg-time { font-size: 10px; opacity: 0.6; }
+        .ticks { font-size: 12px; color: var(--blue); line-height: 1; }
+
+        .msg-author { font-size: 12px; color: var(--blue); font-weight: bold; margin-bottom: 2px; }
+
+        /* Ввод */
         .input-area { padding: 10px; background: var(--panel); display: flex; align-items: center; gap: 10px; border-top: 1px solid #000; }
-        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 12px 15px; border-radius: 25px; font-size: 16px; outline: none; }
+        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 12px 18px; border-radius: 25px; font-size: 16px; outline: none; }
 
         /* Модалки */
-        .modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
-        .setting-row { padding: 18px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .setting-row { padding: 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         
-        /* Сигма-панель элементы */
-        .sigma-card { background: #1c2835; margin: 10px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 15px; border: 1px solid #2b5278; }
-        .sigma-actions { display: flex; gap: 10px; margin-left: auto; }
-        .btn-s { padding: 6px 12px; border-radius: 6px; border: none; font-weight: bold; color: white; cursor: pointer; }
-        .btn-login { background: var(--blue); }
-        .btn-del { background: #ff595a; }
+        /* Сигма-карточки */
+        .sigma-card { background: #1c2835; margin: 10px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 12px; }
+        .s-btns { margin-left: auto; display: flex; gap: 8px; }
+        .s-btn { padding: 7px 12px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -65,15 +72,15 @@
 <div id="app">
     <div id="sidePanel">
         <div class="header">
-            <b>Spark Ultimate</b>
+            <b>Spark Sigma</b>
             <span onclick="toggleModal('settings-modal', true)" style="font-size:24px; cursor:pointer">⚙️</span>
         </div>
         <div id="chat-list">
             <div class="chat-item" onclick="openChat('global')">
                 <div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div>
-                <div style="flex:1"><b>Общий чат</b><br><small style="opacity:0.6">Публичная группа</small></div>
+                <b>Общий чат</b>
             </div>
-        </div>
+            </div>
     </div>
 
     <div id="chatMain">
@@ -95,29 +102,22 @@
 <div id="settings-modal" class="modal">
     <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px">✕</span><b>Настройки</b></div>
     <div style="flex:1; overflow-y:auto">
-        <div class="setting-row" onclick="changeNick()"><span>👤 Имя профиля</span><span id="st-nick" style="color:var(--blue)"></span></div>
-        <div class="setting-row" onclick="changeAva()"><span>🖼️ Сменить аватар</span></div>
-        <div class="setting-row" onclick="changeWall()"><span>🌌 Фон чата</span></div>
+        <div class="setting-row" onclick="changeNick()"><span>👤 Изменить ник</span><span id="st-nick" style="color:var(--blue)"></span></div>
+        <div class="setting-row" onclick="changeAva()"><span>🖼️ Изменить аватарку</span></div>
+        <div class="setting-row" onclick="changeWall()"><span>🌌 Поставить обои</span></div>
         
-        <div class="setting-row" style="background: var(--sigma); color: black; font-weight: bold;" onclick="checkSigmaPassword()">
+        <div class="setting-row" style="background: linear-gradient(45deg, #ffd700, #ffa500); color: #000; font-weight: bold;" onclick="checkSigma()">
             <span>⚡ СИГМА ПАНЕЛЬ</span><span>⭐</span>
         </div>
 
-        <div class="setting-row" onclick="location.reload()"><span>🔄 Обновить</span></div>
+        <div class="setting-row" onclick="location.reload()"><span>🔄 Перезагрузить</span></div>
         <div class="setting-row" onclick="localStorage.clear(); location.reload();" style="color:#ff595a"><span>🚪 Выйти</span></div>
     </div>
 </div>
 
 <div id="sigma-modal" class="modal">
-    <div class="header">
-        <span onclick="toggleModal('sigma-modal', false)" style="font-size:30px">✕</span>
-        <b style="color: gold;">SIGMA CONTROL</b>
-    </div>
-    <div id="sigma-content" style="flex:1; overflow-y:auto; padding-top:10px">
-        </div>
-    <div style="padding: 15px; border-top: 1px solid #333">
-        <button onclick="sigmaGlobalClear()" style="width:100%; padding:15px; background:#ff595a; border:none; color:white; border-radius:10px; font-weight:bold">🗑️ СТЕРЕТЬ ВСЕ СООБЩЕНИЯ</button>
-    </div>
+    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px">✕</span><b style="color:gold">SIGMA PANEL</b></div>
+    <div id="sigma-list" style="flex:1; overflow-y:auto; padding-top:10px"></div>
 </div>
 
 <script>
@@ -134,7 +134,7 @@
     };
 
     function auth() {
-        let n = prompt("Придумай ник:");
+        let n = prompt("Твой ник:");
         if(!n) return auth();
         db.ref('nick_to_id/'+n).once('value', s => {
             let id = s.val() || Date.now().toString();
@@ -149,30 +149,13 @@
     function startApp() {
         document.getElementById('app').style.display = 'flex';
         db.ref('profiles/'+myID).on('value', s => { if(s.val()) document.getElementById('st-nick').innerText = s.val().nick; });
-        
-        // Друзья
-        db.ref('friends/'+myID).on('value', s => {
-            const list = document.getElementById('chat-list');
-            s.forEach(f => {
-                db.ref('profiles/'+f.key).once('value', p => {
-                    const d = p.val();
-                    if(!document.getElementById('li-'+d.id)) {
-                        const div = document.createElement('div');
-                        div.className = 'chat-item'; div.id = 'li-'+d.id;
-                        div.innerHTML = `<img src="${d.ava}" class="ava-msg"><div><b>${d.nick}</b><br><small style="opacity:0.6">Личный чат</small></div>`;
-                        div.onclick = () => openChat(d.id);
-                        list.appendChild(div);
-                    }
-                });
-            });
-        });
     }
 
     function openChat(id) {
         curPeer = id === 'global' ? null : id;
         document.getElementById('sidePanel').classList.add('hidden');
         document.getElementById('chatMain').classList.add('active');
-        const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        const path = curPeer ? 'privates/'+id : 'messages';
         const cont = document.getElementById('msgs-container');
         cont.innerHTML = '';
         db.ref(path).off();
@@ -180,96 +163,76 @@
             const m = snap.val(); const isMy = m.u === myID;
             const row = document.createElement('div');
             row.className = `msg-row ${isMy ? 'my' : 'other'}`;
-            let text = m.m.startsWith('http') ? `<img src="${m.m}" style="max-width:200px; border-radius:12px; display:block">` : m.m;
+            let content = m.m.startsWith('http') ? `<img src="${m.m}" style="max-width:220px; border-radius:12px; display:block">` : m.m;
+            
             row.innerHTML = `
-                <img src="" class="ava-msg i-${m.u}" onclick="showUserCard('${m.u}')">
+                <img src="" class="ava-msg i-${m.u}">
                 <div style="display:flex; flex-direction:column">
                     <span class="msg-author n-${m.u}"></span>
-                    <div class="bubble">${m.f_name ? `<span class="fwd-tag">От ${m.f_name}</span>` : ''}${text}</div>
+                    <div class="bubble">
+                        ${content}
+                        <div class="msg-info">
+                            <span class="msg-time">${new Date(m.t).getHours()}:${String(new Date(m.t).getMinutes()).padStart(2,'0')}</span>
+                            ${isMy ? '<span class="ticks">✔✔</span>' : ''}
+                        </div>
+                    </div>
                 </div>`;
             cont.appendChild(row);
             cont.scrollTop = cont.scrollHeight;
             db.ref('profiles/'+m.u).on('value', s => {
-                if(s.val()) {
-                    document.querySelectorAll('.i-'+m.u).forEach(i => i.src = s.val().ava);
-                    document.querySelectorAll('.n-'+m.u).forEach(n => n.innerText = s.val().nick);
-                }
+                if(s.val()){ document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); }
             });
         });
     }
 
-    // --- СИГМА ЛОГИКА ---
-    function checkSigmaPassword() {
-        let p = prompt("Введите пароль доступа:");
-        // ПАРОЛЬ: введи тот, что ты использовал раньше (например 'sigma777')
-        if(p === 'админ' || p === 'сигма') { 
-            loadSigmaPanel();
-        } else {
-            alert("Неверно. Доступ запрещен.");
+    // СИГМА ЛОГИКА
+    function checkSigma() {
+        let p = prompt("Пароль:");
+        if(p === 'сигма' || p === '123') {
+            toggleModal('settings-modal', false);
+            toggleModal('sigma-modal', true);
+            loadSigmaUsers();
         }
     }
 
-    function loadSigmaPanel() {
-        toggleModal('settings-modal', false);
-        toggleModal('sigma-modal', true);
-        const cont = document.getElementById('sigma-content');
-        cont.innerHTML = '<p style="text-align:center; opacity:0.5">Загрузка базы данных...</p>';
-        
+    function loadSigmaUsers() {
+        const list = document.getElementById('sigma-list');
+        list.innerHTML = '';
         db.ref('profiles').once('value', s => {
-            cont.innerHTML = '';
             s.forEach(u => {
                 const p = u.val();
-                const card = document.createElement('div');
-                card.className = 'sigma-card';
-                card.innerHTML = `
+                const div = document.createElement('div');
+                div.className = 'sigma-card';
+                div.innerHTML = `
                     <img src="${p.ava}" class="ava-msg">
-                    <div><b>${p.nick}</b><br><small>${u.key}</small></div>
-                    <div class="sigma-actions">
-                        <button class="btn-s btn-login" onclick="sigmaLogin('${u.key}')">Вход</button>
-                        <button class="btn-s btn-del" onclick="sigmaDelete('${u.key}', '${p.nick}')">Удалить</button>
-                    </div>
-                `;
-                cont.appendChild(card);
+                    <div><b>${p.nick}</b></div>
+                    <div class="s-btns">
+                        <button class="s-btn" style="background:var(--blue)" onclick="sLogin('${u.key}')">Вход</button>
+                        <button class="s-btn" style="background:#ff595a" onclick="sDel('${u.key}', '${p.nick}')">Удалить</button>
+                    </div>`;
+                list.appendChild(div);
             });
         });
     }
 
-    function sigmaLogin(id) {
-        if(confirm("Переключиться на этот аккаунт?")) {
-            localStorage.setItem('chat_id', id);
-            location.reload();
-        }
-    }
+    function sLogin(id) { localStorage.setItem('chat_id', id); location.reload(); }
+    function sDel(id, name) { if(confirm("Удалить "+name+"?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+name).remove(); loadSigmaUsers(); } }
 
-    function sigmaDelete(id, name) {
-        if(confirm(`УДАЛИТЬ аккаунт ${name} навсегда?`)) {
-            db.ref('profiles/'+id).remove();
-            db.ref('nick_to_id/'+name).remove();
-            loadSigmaPanel();
-        }
-    }
-
-    function sigmaGlobalClear() {
-        if(confirm("ОЧИСТИТЬ ВЕСЬ ОБЩИЙ ЧАТ?")) db.ref('messages').remove();
-    }
-
-    // --- ОСТАЛЬНОЕ ---
+    // ДЕЙСТВИЯ
     function sendMsg() {
         const i = document.getElementById('mInput'), v = i.value.trim();
         if(!v) return;
-        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        const p = curPeer ? 'privates/'+curPeer : 'messages';
         db.ref(p).push({ u: myID, m: v, t: Date.now() });
         i.value = '';
     }
 
-    function changeNick() { let n = prompt("Новое имя:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
-    function changeAva() { let a = prompt("URL аватара:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
-    function changeWall() { let w = prompt("URL фона:"); if(w) { localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
+    function changeNick() { let n = prompt("Новый ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
+    function changeAva() { let a = prompt("Ссылка на аву:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
+    function changeWall() { let w = prompt("Ссылка на обои:"); if(w) { localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
     function toggleModal(id, show) { document.getElementById(id).classList.toggle('active', show); }
-    function showUserCard(uid) { db.ref('profiles/'+uid).once('value', s => { if(confirm("Добавить "+s.val().nick+" в друзья?")) { db.ref('friends/'+myID+'/'+uid).set(true); db.ref('friends/'+uid+'/'+myID).set(true); } }); }
-    function sendMedia() { let u = prompt("URL фото:"); if(u) { const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now() }); } }
+    function sendMedia() { let u = prompt("Ссылка на фото:"); if(u) { const p = curPeer ? 'privates/'+curPeer : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now() }); } }
 </script>
-
 </body>
 </html>
