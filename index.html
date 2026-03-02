@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LiteGram Imbo Evolution</title>
+    <title>LiteGram Imbo Direct</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* ЦВЕТА ИМБО ИНТЕРФЕЙСА */
         :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; }
@@ -16,35 +15,30 @@
         #auth { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .auth-card { background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 320px; }
 
-        /* Шапка с поиском и вкладками */
         .header { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #000; flex-shrink: 0; }
         .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .search-box { display: flex; gap: 5px; flex: 1; max-width: 200px; }
-        .search-box input { background: #242f3d; border: none; color: white; padding: 5px 10px; border-radius: 5px; width: 100%; font-size: 13px; outline: none; }
-        .plus-btn { background: var(--blue); border: none; color: white; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-
-        .tabs { display: flex; gap: 5px; }
-        .tabs button { flex: 1; background: #242f3d; border: none; color: white; padding: 8px; border-radius: 8px; font-size: 12px; position: relative; cursor: pointer; }
+        
+        .tabs { display: flex; gap: 10px; }
+        .tabs button { flex: 1; background: #242f3d; border: none; color: white; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; }
         .tabs button.active { background: var(--blue); }
-        .badge { position: absolute; top: -5px; right: -5px; background: #f44336; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; display: none; }
 
-        /* Контент */
         #view-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
         #msgs, .list-view { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
 
-        /* Баблы сообщений */
-        .msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; background: #182533; align-self: flex-start; word-wrap: break-word; position: relative; }
+        .msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; background: #182533; align-self: flex-start; word-wrap: break-word; cursor: pointer; }
         .msg.my { background: var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
         .msg small { color: var(--blue); font-size: 11px; font-weight: bold; display: block; margin-bottom: 2px; }
 
-        /* Элементы списков */
-        .item { background: #242f3d; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: pointer; }
-        .btn-add { background: #4caf50; border: none; color: white; padding: 6px 12px; border-radius: 5px; font-weight: bold; }
+        /* Кнопки пользователей в личке */
+        .user-btn { background: #242f3d; padding: 15px; border-radius: 12px; border: 1px solid #2b5278; color: white; text-align: left; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .user-btn:active { background: var(--accent); }
+        .user-btn::after { content: '→'; color: var(--blue); }
 
-        /* Поле ввода */
         .input-area { background: var(--panel); display: flex; gap: 8px; padding: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #000; }
         #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 10px; outline: none; font-size: 16px; }
-        .send-btn { background: var(--blue); border: none; color: white; width: 44px; height: 44px; border-radius: 10px; font-size: 20px; cursor: pointer; }
+        .send-btn { background: var(--blue); border: none; color: white; width: 44px; height: 44px; border-radius: 10px; font-size: 20px; }
+        
+        .back-btn { background: none; border: none; color: var(--blue); font-size: 14px; cursor: pointer; padding: 0; margin-right: 10px; display: none; }
     </style>
 </head>
 <body>
@@ -52,7 +46,7 @@
     <div id="auth" style="display: none;">
         <div class="auth-card">
             <h2 style="color: var(--blue)">LiteGram</h2>
-            <input type="text" id="nickInput" placeholder="Ваш ник" style="width: 100%; margin-bottom: 15px; background: #242f3d; color: white; border: none; padding: 12px; border-radius: 10px;">
+            <input type="text" id="nickInput" placeholder="Твой ник" style="width: 100%; margin-bottom: 15px; background: #242f3d; color: white; border: none; padding: 12px; border-radius: 10px;">
             <button onclick="login()" style="width: 100%; height: 45px; background: var(--blue); border: none; border-radius: 10px; color: white; font-weight: bold;">ВОЙТИ</button>
         </div>
     </div>
@@ -60,23 +54,19 @@
     <div id="app">
         <div class="header">
             <div class="top-row">
+                <button id="backBtn" class="back-btn" onclick="switchTab('private')">← Назад</button>
                 <b id="chat-title" style="color: var(--blue)">Общий чат</b>
-                <div class="search-box">
-                    <input type="text" id="findUser" placeholder="Добавить друга...">
-                    <button class="plus-btn" onclick="sendFriendReq()">+</button>
-                </div>
+                <span id="status" style="font-size: 10px; color: #4caf50;">● Online</span>
             </div>
-            <div class="tabs">
-                <button id="t-global" class="active" onclick="switchTab('global')">Общий</button>
+            <div class="tabs" id="tabBar">
+                <button id="t-global" class="active" onclick="switchTab('global')">Общий чат</button>
                 <button id="t-private" onclick="switchTab('private')">Личные</button>
-                <button id="t-reqs" onclick="switchTab('reqs')">Заявки <span id="r-badge" class="badge">0</span></button>
             </div>
         </div>
 
         <div id="view-container">
             <div id="msgs"></div>
             <div id="private-list" class="list-view" style="display:none"></div>
-            <div id="reqs-list" class="list-view" style="display:none"></div>
         </div>
 
         <div class="input-area" id="input-box">
@@ -93,7 +83,7 @@
         let curTab = 'global', curPeer = null;
 
         if(!myNick) document.getElementById('auth').style.display='flex';
-        else { db.ref('users/'+myNick).set(true); init(); }
+        else { init(); }
 
         function login() {
             let n = document.getElementById('nickInput').value.trim();
@@ -101,28 +91,22 @@
         }
 
         function init() {
-            // Следим за заявками
-            db.ref('reqs/'+myNick).on('value', s => {
-                let count = s.numChildren();
-                document.getElementById('r-badge').innerText = count;
-                document.getElementById('r-badge').style.display = count > 0 ? 'block' : 'none';
-                renderReqs(s);
-            });
-            // Следим за списком друзей
             db.ref('friends/'+myNick).on('value', renderFriends);
             switchTab('global');
         }
 
         function switchTab(t) {
             curTab = t; curPeer = null;
-            document.getElementById('chat-title').innerText = t==='global'?'Общий чат':(t==='private'?'Личные чаты':'Заявки');
+            document.getElementById('chat-title').innerText = t==='global'?'Общий чат':'Личные чаты';
             document.getElementById('msgs').style.display = t==='global'?'flex':'none';
             document.getElementById('private-list').style.display = t==='private'?'flex':'none';
-            document.getElementById('reqs-list').style.display = t==='reqs'?'flex':'none';
             document.getElementById('input-box').style.display = t==='global'?'flex':'none';
+            document.getElementById('tabBar').style.display = 'flex';
+            document.getElementById('backBtn').style.display = 'none';
             
             document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.getElementById('t-'+t).classList.add('active');
+            if(document.getElementById('t-'+t)) document.getElementById('t-'+t).classList.add('active');
+            
             if(t==='global') listenChat('messages');
         }
 
@@ -137,10 +121,16 @@
                 m.id = snap.key;
                 m.innerHTML = `<small>${d.u}</small>${d.m}`;
                 
-                // Фикс удаления для телефонов
                 m.onclick = () => {
-                    if(isMy && confirm("Удалить сообщение для всех?")) {
-                        db.ref(path+'/'+snap.key).remove();
+                    if(isMy) {
+                        if(confirm("Удалить сообщение?")) db.ref(path+'/'+snap.key).remove();
+                    } else {
+                        if(confirm(`Написать @${d.u} в личку?`)) {
+                            // Взаимное добавление в личные чаты
+                            db.ref('friends/'+myNick+'/'+d.u).set(true);
+                            db.ref('friends/'+d.u+'/'+myNick).set(true);
+                            openPriv(d.u);
+                        }
                     }
                 };
                 box.appendChild(m); box.scrollTop = box.scrollHeight;
@@ -150,33 +140,18 @@
             });
         }
 
-        function sendFriendReq() {
-            let t = document.getElementById('findUser').value.trim();
-            if(!t || t===myNick) return;
-            db.ref('reqs/'+t+'/'+myNick).set(true);
-            alert("Заявка пользователю @" + t + " отправлена!");
-            document.getElementById('findUser').value = '';
-        }
-
-        function renderReqs(s) {
-            const v = document.getElementById('reqs-list'); v.innerHTML = '';
-            s.forEach(c => {
-                v.innerHTML += `<div class="item"><span>@${c.key}</span><button class="btn-add" onclick="accept('${c.key}')">Добавить</button></div>`;
-            });
-        }
-
-        function accept(name) {
-            db.ref('friends/'+myNick+'/'+name).set(true);
-            db.ref('friends/'+name+'/'+myNick).set(true);
-            db.ref('reqs/'+myNick+'/'+name).remove();
-            alert("Вы теперь друзья с @" + name);
-            switchTab('private');
-        }
-
         function renderFriends(s) {
             const v = document.getElementById('private-list'); v.innerHTML = '';
+            if(!s.exists()) {
+                v.innerHTML = '<center style="color:gray;margin-top:20px">Нажми на чьё-то сообщение в общем чате, чтобы начать личную переписку.</center>';
+                return;
+            }
             s.forEach(c => {
-                v.innerHTML += `<div class="item" onclick="openPriv('${c.key}')"><span>@${c.key}</span><small style="color:var(--blue)">открыть чат</small></div>`;
+                const b = document.createElement('div');
+                b.className = 'user-btn';
+                b.innerText = '@' + c.key;
+                b.onclick = () => openPriv(c.key);
+                v.appendChild(b);
             });
         }
 
@@ -184,6 +159,8 @@
             curPeer = name;
             document.getElementById('chat-title').innerText = "@"+name;
             document.getElementById('private-list').style.display = 'none';
+            document.getElementById('tabBar').style.display = 'none';
+            document.getElementById('backBtn').style.display = 'block';
             document.getElementById('msgs').style.display = 'flex';
             document.getElementById('input-box').style.display = 'flex';
             let id = [myNick, name].sort().join('_');
