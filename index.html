@@ -3,66 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiteGram Flash</title>
+    <title>LiteGram Fix</title>
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <style>
-        :root { --bg: #0e1621; --panel: #17212b; --text: #ffffff; --accent: #2b5278; --msg-my: #2b5278; --msg-other: #182533; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        
-        #auth { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .auth-box { background: var(--panel); padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; text-align: center; }
-
-        .header { background: var(--panel); padding: 15px; font-weight: bold; display: flex; justify-content: space-between; border-bottom: 1px solid #000; }
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        
-        .msg { padding: 10px 14px; border-radius: 18px; max-width: 75%; word-wrap: break-word; position: relative; animation: fadeIn 0.2s ease; }
-        .msg.my { align-self: flex-end; background: var(--msg-my); border-bottom-right-radius: 4px; }
-        .msg.other { align-self: flex-start; background: var(--msg-other); border-bottom-left-radius: 4px; }
-        .msg-info { font-size: 10px; opacity: 0.7; display: block; margin-bottom: 3px; }
-
-        .input-area { background: var(--panel); padding: 12px; display: flex; gap: 10px; }
-        input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 10px; outline: none; }
-        button { background: #50a2e3; border: none; color: white; padding: 0 20px; border-radius: 10px; cursor: pointer; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        #typing { font-size: 12px; color: #50a2e3; height: 18px; padding-left: 15px; }
+        :root { --bg: #0e1621; --panel: #17212b; --text: #ffffff; --accent: #2b5278; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: var(--panel); padding: 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #000; }
+        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #0e1621; }
+        .msg { padding: 10px; border-radius: 10px; background: #182533; max-width: 80%; align-self: flex-start; }
+        .msg.my { align-self: flex-end; background: var(--accent); }
+        .input-area { background: var(--panel); padding: 10px; display: flex; gap: 10px; }
+        input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 8px; outline: none; }
+        button { background: #50a2e3; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        #auth { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
     </style>
 </head>
 <body>
 
     <div id="auth" style="display: none;">
-        <div class="auth-box">
-            <h2>LiteGram</h2>
-            <input type="text" id="nick" placeholder="Никнейм" style="width: 90%; margin-bottom: 10px;">
-            <button onclick="login()" style="width: 100%; height: 40px;">Войти</button>
-        </div>
+        <h2>LiteGram</h2>
+        <input type="text" id="nick" placeholder="Никнейм" style="width: 250px; margin-bottom: 10px;">
+        <button onclick="login()">Войти</button>
     </div>
 
     <div class="header">
-        <span id="title">Общий чат</span>
-        <span id="status" style="font-size: 12px; color: #4caf50;">● Online</span>
+        <span id="userTitle">Чат</span>
+        <span id="netStatus" style="color: orange;">Подключение...</span>
     </div>
 
     <div id="msgs"></div>
-    <div id="typing"></div>
+    <div id="typing" style="font-size: 12px; color: #50a2e3; padding-left: 15px; height: 15px;"></div>
 
     <div class="input-area">
-        <input type="text" id="mInput" placeholder="Сообщение..." oninput="isTyping()" onkeypress="if(event.key==='Enter') send()">
+        <input type="text" id="mInput" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') send()">
         <button onclick="send()"> SEND </button>
     </div>
 
     <script>
-        // Используем сразу несколько серверов для надежности и скорости
-        const gun = Gun([
+        // Используем проверенные и рабочие relay-серверы
+        const peers = [
             'https://gun-manhattan.herokuapp.com/gun',
-            'https://gun-test.herokuapp.com/gun'
-        ]);
+            'https://gunjs.herokuapp.com/gun',
+            'https://www.verisart.com/gun'
+        ];
+        
+        const gun = Gun({ peers: peers, localStorage: true });
 
         let myNick = localStorage.getItem('chat_nick');
-        const chatRoom = gun.get('global-chat-realtime-v1'); // Свежая комната для чистого теста
-
         if(!myNick) {
             document.getElementById('auth').style.display = 'flex';
+        } else {
+            document.getElementById('userTitle').innerText = "@" + myNick;
+            startChat();
         }
 
         function login() {
@@ -73,52 +65,45 @@
             }
         }
 
-        function send() {
-            const input = document.getElementById('mInput');
-            if(!input.value) return;
-
-            // Отправляем объект с меткой времени
-            chatRoom.set({
-                u: myNick,
-                m: input.value,
-                t: Date.now()
+        function startChat() {
+            // Проверка статуса сети
+            gun.on('hi', () => {
+                document.getElementById('netStatus').innerText = "● Online";
+                document.getElementById('netStatus').style.color = "#4caf50";
             });
-            input.value = '';
-            stopTyping();
+
+            const chat = gun.get('global-chat-v100'); // Новая комната
+
+            // Загрузка и прослушивание сообщений
+            chat.map().on((data, id) => {
+                if(!data || !data.m) return;
+                
+                // Проверка, не отрисовано ли уже это сообщение
+                if(document.getElementById(id)) return;
+
+                const d = document.createElement('div');
+                d.id = id;
+                const isMy = data.u === myNick;
+                d.className = `msg ${isMy ? 'my' : ''}`;
+                d.innerHTML = `<small style="opacity:0.6">${data.u}</small><br>${data.m}`;
+                
+                const box = document.getElementById('msgs');
+                box.appendChild(d);
+                box.scrollTop = box.scrollHeight;
+            });
+
+            window.send = function() {
+                const input = document.getElementById('mInput');
+                if(input.value.trim() === "") return;
+
+                chat.set({
+                    u: myNick,
+                    m: input.value,
+                    t: Date.now()
+                });
+                input.value = "";
+            };
         }
-
-        // РЕАЛЬНОЕ ВРЕМЯ: Слушаем изменения постоянно
-        const displayedMsgs = new Set();
-        chatRoom.map().on((data, id) => {
-            if(!data || !data.m || displayedMsgs.has(id)) return;
-            displayedMsgs.add(id);
-
-            const d = document.createElement('div');
-            const isMy = data.u === myNick;
-            d.className = `msg ${isMy ? 'my' : 'other'}`;
-            d.innerHTML = `<span class="msg-info">${data.u}</span>${data.m}`;
-            
-            const box = document.getElementById('msgs');
-            box.appendChild(d);
-            box.scrollTop = box.scrollHeight;
-        });
-
-        // ПЕЧАТАЕТ...
-        function isTyping() {
-            gun.get('typing').get(myNick).put(true);
-            clearTimeout(window.tTimeout);
-            window.tTimeout = setTimeout(stopTyping, 2000);
-        }
-
-        function stopTyping() {
-            gun.get('typing').get(myNick).put(false);
-        }
-
-        gun.get('typing').map().on((typing, user) => {
-            if(user === myNick) return;
-            document.getElementById('typing').innerText = typing ? user + ' печатает...' : '';
-        });
     </script>
 </body>
 </html>
-
