@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Live Edition</title>
+    <title>Spark Real-Time</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -32,11 +32,14 @@
 
         .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; }
+        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; position: relative; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
         
         .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; }
+
+        /* Галочки */
+        .status-tick { font-size: 10px; margin-left: 5px; color: var(--blue); }
 
         .input-area { padding: 10px; background: var(--panel); display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #000; }
         #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; font-size: 16px; outline: none; resize: none; max-height: 120px; min-height: 40px; font-family: inherit; line-height: 1.4; }
@@ -52,7 +55,6 @@
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .sigma-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid #1c2835; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
@@ -78,7 +80,7 @@
                 <span onclick="goBack()" style="font-size:30px; color:var(--blue); cursor:pointer; padding:5px">‹</span>
                 <div>
                     <b id="chatTitle">Чат</b>
-                    <span id="chatSubtitle">Загрузка...</span>
+                    <span id="chatSubtitle">...</span>
                 </div>
             </div>
         </div>
@@ -103,10 +105,12 @@
         <div class="setting-row" onclick="localStorage.clear(); location.reload();" style="color:#ff595a"><span>🚪 Выйти</span></div>
     </div>
 </div>
+
 <div id="sigma-modal" class="modal">
     <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA CONTROL</b></div>
     <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
 </div>
+
 <div id="profile-modal" class="modal">
     <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
     <div id="profile-content" style="padding:40px; text-align:center"></div>
@@ -120,12 +124,12 @@
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
     let myNick = "";
-    let selectedMsg = null;
-    let multiFwdTargets = [];
     let isRecording = false;
+    let typingTimer;
     let mediaRecorder;
     let audioChunks = [];
-    let typingTimer;
+    let selectedMsg = null;
+    let multiFwdTargets = [];
 
     window.onload = () => {
         if(localStorage.getItem('spark_wall')) document.getElementById('wall-layer').style.backgroundImage = `url(${localStorage.getItem('spark_wall')})`;
@@ -133,7 +137,7 @@
     };
 
     function startApp() {
-        // Статус Online
+        // Online status
         const userStatusRef = db.ref('status/' + myID);
         userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
         userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP });
@@ -145,7 +149,7 @@
             }
         });
 
-        // Список чатов
+        // Chat list
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
             const global = document.getElementById('item-global');
@@ -170,84 +174,98 @@
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         const subtitle = document.getElementById('chatSubtitle');
         
-        // Очистка подзаголовка
-        subtitle.innerText = "...";
+        // Mark as read
+        if(curPeer) {
+            db.ref(path).once('value', s => {
+                s.forEach(msg => {
+                    if(msg.val().u !== myID && !msg.val().read) {
+                        db.ref(path + '/' + msg.key).update({ read: true });
+                    }
+                });
+            });
+        }
 
-        // Статус печати и Онлайн
+        // Subtitle logic
         if(!curPeer) {
-            // В общем чате: количество онлайн
             db.ref('status').on('value', s => {
-                let count = 0;
-                s.forEach(u => { if(u.val().state === 'online') count++; });
-                subtitle.innerText = count + " человек(а) онлайн";
+                let count = 0; s.forEach(u => { if(u.val().state === 'online') count++; });
+                subtitle.innerText = count + " онлайн";
             });
         } else {
-            // В ЛС: статус собеседника
             db.ref('status/' + curPeer).on('value', s => {
                 if(s.val() && s.val().state === 'online') subtitle.innerHTML = "<span class='online-dot'>●</span> в сети";
                 else subtitle.innerText = "офлайн";
             });
         }
 
-        // Индикатор "печатает..."
-        const typingRef = db.ref('typing/' + (curPeer ? [myID, curPeer].sort().join('_') : 'global'));
-        typingRef.on('value', s => {
+        // Typing logic
+        const typingPath = curPeer ? [myID, curPeer].sort().join('_') : 'global';
+        db.ref('typing/' + typingPath).on('value', s => {
             s.forEach(u => {
-                if(u.key !== myID && u.val().isTyping) {
-                    subtitle.innerText = u.val().nick + " печатает...";
-                }
+                if(u.key !== myID && u.val().isTyping) subtitle.innerText = u.val().nick + " печатает...";
             });
         });
 
-        // Сообщения
+        // Load messages
         const cont = document.getElementById('msgs-container');
         cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
-            const m = snap.val(); const isMy = m.u === myID;
-            const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
-            let content = m.m;
-            if(m.type === 'voice') content = `<audio controls src="${m.m}" style="width:180px"></audio>`;
-            else if(String(m.m).startsWith('http')) content = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
-            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).replace(/'/g,"")}', '${m.u}')">${m.f_name ? `<span style="font-size:10px; color:var(--blue); display:block">Переслано от ${m.f_name}</span>` : ''}${content}${isMy?'<span style="font-size:10px; margin-left:5px">✔✔</span>':''}</div></div>`;
-            cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); } });
+            renderMessage(snap);
+        });
+        db.ref(path).limitToLast(50).on('child_changed', snap => {
+            const old = document.getElementById('m-'+snap.key);
+            if(old) old.querySelector('.status-tick').innerText = snap.val().read ? '✔✔' : '✔';
         });
     }
 
-    const tx = document.getElementById('mInput');
-    tx.oninput = function() {
-        this.style.height = "40px"; this.style.height = this.scrollHeight + "px";
-        // Отправка статуса печати
-        const typingPath = curPeer ? [myID, curPeer].sort().join('_') : 'global';
-        db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: true, nick: myNick });
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => {
-            db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: false });
-        }, 2000);
-    };
-
-    tx.onkeydown = (e) => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } };
+    function renderMessage(snap) {
+        const m = snap.val(); const isMy = m.u === myID;
+        const cont = document.getElementById('msgs-container');
+        const row = document.createElement('div'); 
+        row.className = `msg-row ${isMy ? 'my' : 'other'}`;
+        row.id = 'm-' + snap.key;
+        
+        let content = m.m;
+        if(m.type === 'voice') content = `<audio controls src="${m.m}" style="width:180px"></audio>`;
+        else if(String(m.m).startsWith('http')) content = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
+        
+        const tick = isMy ? `<span class="status-tick">${m.read ? '✔✔' : '✔'}</span>` : '';
+        
+        row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).replace(/'/g,"")}', '${m.u}')">${m.f_name ? `<span style="font-size:10px; color:var(--blue); display:block">От ${m.f_name}</span>` : ''}${content}${tick}</div></div>`;
+        cont.appendChild(row); 
+        cont.scrollTop = cont.scrollHeight;
+        db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); } });
+    }
 
     function sendMsg() {
         if(isRecording) { stopVoiceAndSend(); return; }
         const v = tx.value.trim(); if(!v) return;
         const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-        db.ref(p).push({ u: myID, m: v, t: Date.now() });
+        db.ref(p).push({ u: myID, m: v, t: Date.now(), read: false });
         db.ref('typing/' + (curPeer ? [myID, curPeer].sort().join('_') : 'global') + '/' + myID).set({ isTyping: false });
         tx.value = ''; tx.style.height = "40px";
     }
 
-    // Сигма-панель
+    const tx = document.getElementById('mInput');
+    tx.oninput = function() {
+        this.style.height = "40px"; this.style.height = this.scrollHeight + "px";
+        const typingPath = curPeer ? [myID, curPeer].sort().join('_') : 'global';
+        db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: true, nick: myNick });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: false }), 2000);
+    };
+    tx.onkeydown = (e) => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } };
+
+    // Sigma, Profile, Media... (Все функции сохранены)
     function checkSigma() {
-        if(prompt("Введи код доступа:") === '1234567891011121314151617181920') {
-            toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma();
-        } else alert("Неверно!");
+        if(prompt("Код:") === '1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); }
     }
     function loadSigma() {
         const list = document.getElementById('sigma-list'); list.innerHTML = '';
         db.ref('profiles').once('value', s => {
             s.forEach(u => {
-                const p = u.val(); const div = document.createElement('div'); div.className = 'sigma-card';
+                const p = u.val(); const div = document.createElement('div'); 
+                div.style.cssText = "display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #1c2835;";
                 div.innerHTML = `<img src="${p.ava}" class="ava-msg"><b>${p.nick}</b> <div style="margin-left:auto"><button onclick="sL('${u.key}')">Вход</button> <button onclick="sD('${u.key}', '${p.nick}')">Удалить</button></div>`;
                 list.appendChild(div);
             });
@@ -256,7 +274,6 @@
     function sL(id) { localStorage.setItem('chat_id', id); location.reload(); }
     function sD(id, n) { if(confirm("Удалить?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+n).remove(); location.reload(); } }
 
-    // Стандартные функции
     async function toggleVoice() {
         if(!isRecording) {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -266,8 +283,8 @@
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
                 const reader = new FileReader(); reader.readAsDataURL(blob);
                 reader.onloadend = () => {
-                    const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-                    db.ref(path).push({ u: myID, m: reader.result, type: 'voice', t: Date.now() });
+                    const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+                    db.ref(p).push({ u: myID, m: reader.result, type: 'voice', t: Date.now(), read: false });
                 };
             };
             mediaRecorder.start(); isRecording = true; document.getElementById('voiceBtn').classList.add('recording');
@@ -282,19 +299,18 @@
             else { multiFwdTargets.push(id); document.getElementById(tid).classList.add('selected'); }
             document.getElementById('fwd-bar').style.display = multiFwdTargets.length > 0 ? 'block' : 'none';
             document.getElementById('fwd-count').innerText = multiFwdTargets.length;
-        } else { openChat(id); }
+        } else openChat(id);
     }
     function msgAction(id, txt, uid) {
-        if(uid === myID) {
-            if(confirm("ОК - Переслать, ОТМЕНА - Удалить")) fwdPrompt(txt, uid); else deleteMsg(id);
-        } else { if(confirm("Переслать?")) fwdPrompt(txt, uid); }
+        if(uid === myID) { if(confirm("Переслать? (ОК), Удалить? (Отмена)")) fwdPrompt(txt, uid); else deleteMsg(id); }
+        else if(confirm("Переслать?")) fwdPrompt(txt, uid);
     }
     function deleteMsg(id) { const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p+'/'+id).remove(); }
     function fwdPrompt(txt, uid) { db.ref('profiles/'+uid).once('value', s => { selectedMsg = { txt: txt, from: s.val().nick }; goBack(); }); }
     function finishMultiFwd() {
         multiFwdTargets.forEach(id => {
             const p = id === 'global' ? 'messages' : 'privates/'+[myID, id].sort().join('_');
-            db.ref(p).push({ u: myID, m: selectedMsg.txt, f_name: selectedMsg.from, t: Date.now() });
+            db.ref(p).push({ u: myID, m: selectedMsg.txt, f_name: selectedMsg.from, t: Date.now(), read: false });
         });
         selectedMsg = null; multiFwdTargets = []; document.getElementById('fwd-bar').style.display = 'none';
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('selected'));
@@ -304,7 +320,7 @@
     function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
     function changeAva() { let a = prompt("URL:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
     function changeWall() { let w = prompt("URL:"); if(w){ localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
-    function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now() }); } }
+    function sendMedia() { let u = prompt("URL:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now(), read: false }); } }
     function showProfile(uid) {
         db.ref('profiles/'+uid).once('value', s => {
             const p = s.val();
@@ -317,13 +333,5 @@
         let n = prompt("Ник:"); if(!n) return auth();
         db.ref('nick_to_id/'+n).once('value', s => {
             let id = s.val() || Date.now().toString();
-            if(!s.val()) {
-                db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id});
-                db.ref('nick_to_id/'+n).set(id);
-            }
-            localStorage.setItem('chat_id', id); location.reload();
-        });
-    }
-</script>
-</body>
-</html>
+            if(!s.val()) { db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id}); db.ref('nick_to_id/'+n).set(id); }
+            localStorage.setItem('chat_id', id); locat
