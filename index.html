@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Final Fix</title>
+    <title>Spark Full Restore</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -15,35 +15,34 @@
         body, html { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; }
         
         #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.3; z-index: 1; pointer-events: none; }
-        #app { position: relative; display: flex; height: 100dvh; width: 100vw; flex-direction: column; z-index: 2; }
+        #app { position: relative; display: flex; height: 100dvh; width: 100vw; flex-direction: column; z-index: 5; }
 
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
         
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
         
-        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #1c2835; cursor: pointer; position: relative; z-index: 110; }
+        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #1c2835; cursor: pointer; }
         .chat-item:active { background: rgba(255,255,255,0.1); }
-        .chat-item.selected { background: var(--accent) !important; border-left: 4px solid var(--blue); }
 
         #chatMain { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; position: relative; z-index: 200; }
         #chatMain.active { display: flex; }
         
-        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 210; }
 
         .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; position: relative; }
+        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; position: relative; z-index: 220; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
         
-        .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; }
-        .status-tick { font-size: 11px; margin-left: 6px; color: var(--blue); font-weight: bold; }
+        .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; cursor: pointer; position: relative; z-index: 230; }
+        .status-tick { font-size: 11px; margin-left: 6px; color: var(--blue); }
 
         .input-area { padding: 10px; background: var(--panel); display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #000; position: relative; z-index: 300; }
         #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; font-size: 16px; outline: none; resize: none; max-height: 120px; min-height: 40px; font-family: inherit; line-height: 1.4; }
 
-        .btn-action { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: none; background: none; color: var(--blue); z-index: 310; }
+        .btn-action { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: none; background: none; color: var(--blue); }
         .btn-voice { background: var(--blue); border-radius: 50%; color: white; font-size: 20px; }
         .recording { background: #ff595a !important; animation: pulse 1s infinite; }
         .send-btn { font-size: 28px; }
@@ -109,14 +108,18 @@
 
 <script>
     const config = { databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" };
-    firebase.initializeApp(config);
+    if (!firebase.apps.length) firebase.initializeApp(config);
     const db = firebase.database();
 
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
     let myNick = "";
     let isRecording = false;
+    let mediaRecorder;
+    let audioChunks = [];
     let typingTimer;
+    let selectedMsg = null;
+    let multiFwdTargets = [];
 
     window.onload = () => {
         if(localStorage.getItem('spark_wall')) document.getElementById('wall-layer').style.backgroundImage = `url(${localStorage.getItem('spark_wall')})`;
@@ -152,35 +155,27 @@
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         const subtitle = document.getElementById('chatSubtitle');
         
-        // ЛОГИКА ПРОЧТЕНИЯ
-        db.ref(path).on('value', s => {
-            s.forEach(m => {
-                if(m.val().u !== myID && m.val().read === false) {
-                    db.ref(path + '/' + m.key).update({ read: true });
-                }
-            });
+        // Отметка о прочтении
+        db.ref(path).once('value', s => {
+            s.forEach(m => { if(m.val().u !== myID && !m.val().read) db.ref(path+'/'+m.key).update({read:true}); });
         });
 
-        // Онлайн / Печать
         if(curPeer) {
             db.ref('status/'+curPeer).on('value', s => { subtitle.innerText = (s.val()?.state==='online'?'в сети':'офлайн'); });
             db.ref('typing/'+[myID, curPeer].sort().join('_')).on('value', s => {
                 s.forEach(u => { if(u.key !== myID && u.val().isTyping) subtitle.innerText = "печатает..."; });
             });
-        } else {
-            db.ref('status').on('value', s => { let c=0; s.forEach(u=>{if(u.val().state==='online')c++}); subtitle.innerText = c+" онлайн"; });
         }
 
         const cont = document.getElementById('msgs-container');
-        cont.innerHTML = ''; db.ref(path).off('child_added');
+        cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
             const m = snap.val(); const isMy = m.u === myID;
-            const row = document.createElement('div'); 
-            row.className = `msg-row ${isMy ? 'my' : 'other'}`;
+            const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
             row.id = 'msg-'+snap.key;
             
             let txt = m.m;
-            if(m.type === 'voice') txt = `<audio controls src="${m.m}" style="width:160px"></audio>`;
+            if(m.type === 'voice') txt = `<audio controls src="${m.m}" style="width:180px"></audio>`;
             else if(String(m.m).startsWith('http')) txt = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
             
             const ticks = isMy ? `<span class="status-tick" id="t-${snap.key}">${m.read ? '✔✔' : '✔'}</span>` : '';
@@ -193,39 +188,109 @@
                     </div>
                 </div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).once('value', s => { if(s.val()){ 
+            db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ 
                 document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); 
                 document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); 
             }});
         });
 
-        // Следим за изменением галочек
         db.ref(path).on('child_changed', snap => {
             const t = document.getElementById('t-'+snap.key);
             if(t) t.innerText = snap.val().read ? '✔✔' : '✔';
         });
     }
 
+    // ГОЛОСОВЫЕ СООБЩЕНИЯ
+    async function toggleVoice() {
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = () => {
+                        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+                        db.ref(p).push({ u: myID, m: reader.result, type: 'voice', t: Date.now(), read: false });
+                    };
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                document.getElementById('voiceBtn').classList.add('recording');
+            } catch (e) { alert("Микрофон недоступен"); }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            document.getElementById('voiceBtn').classList.remove('recording');
+        }
+    }
+
+    // ДЕЙСТВИЯ (АВАТАРКА И ТЕКСТ)
+    function showProfile(uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            const p = s.val();
+            document.getElementById('profile-content').innerHTML = `
+                <img src="${p.ava}" style="width:100px; border-radius:50%">
+                <h2>${p.nick}</h2>
+                <button onclick="addAndWrite('${p.id}')" style="padding:10px 30px; background:var(--blue); border:none; color:white; border-radius:10px; margin-top:15px; cursor:pointer">Написать</button>`;
+            toggleModal('profile-modal', true);
+        });
+    }
+    function addAndWrite(uid) { db.ref('friends/'+myID+'/'+uid).set(true); db.ref('friends/'+uid+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(uid); }
+
+    function msgAction(id, txt, uid) {
+        if(uid === myID) {
+            if(confirm("ОК - Переслать, ОТМЕНА - Удалить")) fwdPrompt(txt, uid); else deleteMsg(id);
+        } else {
+            if(confirm("Переслать это сообщение?")) fwdPrompt(txt, uid);
+        }
+    }
+    function deleteMsg(id) { 
+        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; 
+        db.ref(p+'/'+id).remove(); 
+    }
+
+    // ОСТАЛЬНОЕ
     function sendMsg() {
         const v = tx.value.trim(); if(!v) return;
         const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         db.ref(p).push({ u: myID, m: v, t: Date.now(), read: false });
         tx.value = ''; tx.style.height = "40px";
-        db.ref('typing/'+(curPeer?[myID,curPeer].sort().join('_'):'global')+'/'+myID).set({isTyping:false});
     }
 
     const tx = document.getElementById('mInput');
     tx.oninput = function() {
         this.style.height = '40px'; this.style.height = this.scrollHeight + 'px';
-        const path = curPeer ? [myID, curPeer].sort().join('_') : 'global';
-        db.ref('typing/'+path+'/'+myID).set({isTyping:true, nick: myNick});
+        const p = curPeer ? [myID, curPeer].sort().join('_') : 'global';
+        db.ref('typing/'+p+'/'+myID).set({isTyping:true, nick: myNick});
         clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => db.ref('typing/'+path+'/'+myID).set({isTyping:false}), 2000);
+        typingTimer = setTimeout(() => db.ref('typing/'+p+'/'+myID).set({isTyping:false}), 2000);
     };
 
     function handleChatClick(id) { openChat(id); }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); curPeer = null; }
     function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
+
+    function fwdPrompt(txt, uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            selectedMsg = { txt: txt, from: s.val().nick };
+            goBack();
+            alert("Теперь выберите чат для пересылки");
+            // Включаем режим выбора
+            document.querySelectorAll('.chat-item').forEach(el => {
+                el.onclick = () => {
+                    const targetId = el.id === 'item-global' ? 'global' : el.id.replace('li-','');
+                    const p = targetId === 'global' ? 'messages' : 'privates/'+[myID, targetId].sort().join('_');
+                    db.ref(p).push({ u: myID, m: selectedMsg.txt, f_name: selectedMsg.from, t: Date.now(), read: false });
+                    selectedMsg = null;
+                    location.reload(); // Сброс режима
+                };
+            });
+        });
+    }
 
     function checkSigma() {
         if(prompt("Код:") === '1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); }
@@ -250,11 +315,11 @@
             localStorage.setItem('chat_id', id); location.reload();
         });
     }
-
     function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
     function changeAva() { let a = prompt("URL:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
     function changeWall() { let w = prompt("URL:"); if(w){ localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
     function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now(), read: false }); } }
 </script>
 </body>
-</html>
+    </html>
+
