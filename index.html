@@ -1,251 +1,99 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LiteGram Imbo OS</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <style>
-        :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3; --text: #ffffff; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; overflow: hidden; }
+<style>
+    #typing-disk {
+        padding: 5px 20px;
+        font-size: 12px;
+        color: var(--blue);
+        font-style: italic;
+        height: 20px;
+        transition: 0.3s;
+    }
+    .typing-dots::after {
+        content: '';
+        animation: dots 1.5s infinite;
+    }
+    @keyframes dots {
+        0% { content: '.'; }
+        33% { content: '..'; }
+        66% { content: '...'; }
+    }
+</style>
+
+<div id="typing-disk"></div>
+
+<script>
+    // --- ВСЯ ЛОГИКА ТЕПЕРЬ ТУТ ---
+
+    // 1. Функция отправки статуса "Печатаю"
+    const mInput = document.getElementById('mInput');
+    mInput.addEventListener('input', () => {
+        let path = curPeer ? `typing/privates/${curPeer}/${myID}` : `typing/global/${myID}`;
+        db.ref(path).set(Date.now());
+    });
+
+    // 2. Функция отслеживания кто печатает
+    function listenTyping(isGlobal, peerID = null) {
+        const disk = document.getElementById('typing-disk');
+        const status = document.getElementById('chatStatus');
+        const path = isGlobal ? 'typing/global' : `typing/privates/${myID}`;
         
-        #app { display: flex; flex-direction: column; height: 100%; }
-        
-        /* Вход / Регистрация */
-        #auth { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 3000; }
-        .auth-card { background: var(--panel); padding: 25px; border-radius: 20px; text-align: center; width: 90%; max-width: 320px; }
-        .auth-card input { width: 100%; margin-bottom: 12px; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 10px; }
-
-        /* Шапка */
-        .header { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #000; flex-shrink: 0; }
-        .tabs { display: flex; gap: 8px; margin-top: 10px; }
-        .tabs button { flex: 1; background: #242f3d; border: none; color: white; padding: 10px; border-radius: 10px; font-size: 13px; cursor: pointer; }
-        .tabs button.active { background: var(--blue); }
-
-        /* Контент */
-        #view-container { flex: 1; overflow-y: auto; position: relative; }
-        .view { display: none; height: 100%; flex-direction: column; padding: 15px; overflow-y: auto; }
-        .view.active { display: flex; }
-
-        /* Сообщения */
-        .msg-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
-        .msg-row.my { flex-direction: row-reverse; }
-        .avatar { width: 35px; height: 35px; border-radius: 50%; background: var(--accent); object-fit: cover; cursor: pointer; flex-shrink: 0; }
-        .msg-bubble { padding: 8px 12px; border-radius: 15px; max-width: 75%; background: #182533; word-wrap: break-word; }
-        .my .msg-bubble { background: var(--accent); border-bottom-right-radius: 4px; }
-        .msg-bubble small { color: var(--blue); font-weight: bold; display: block; margin-bottom: 2px; }
-
-        /* Личные чаты */
-        .user-card { background: var(--panel); padding: 12px; border-radius: 15px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; cursor: pointer; }
-        .user-card b { flex: 1; }
-
-        /* Настройки */
-        .settings-top { text-align: center; padding: 20px 0; }
-        .big-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--blue); margin-bottom: 15px; object-fit: cover; cursor: pointer; }
-        .nick-edit { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 20px; }
-
-        /* Модалка профиля */
-        #profile-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 4000; }
-        .modal-content { background: var(--panel); width: 80%; max-width: 300px; padding: 25px; border-radius: 20px; text-align: center; }
-
-        /* Ввод */
-        .input-area { background: var(--panel); padding: 10px; display: flex; gap: 8px; border-top: 1px solid #000; }
-        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 10px; outline: none; }
-        .send-btn { background: var(--blue); border: none; width: 45px; height: 45px; border-radius: 10px; color: white; font-size: 20px; }
-    </style>
-</head>
-<body>
-
-    <div id="auth" style="display: none;">
-        <div class="auth-card">
-            <h2 style="color: var(--blue)">LiteGram</h2>
-            <img id="regPre" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar" style="width:70px;height:70px;margin-bottom:10px">
-            <input type="text" id="regNick" placeholder="Твой ник">
-            <input type="text" id="regAva" placeholder="Ссылка на фото (необязательно)">
-            <button onclick="register()" style="width:100%; padding:12px; background:var(--blue); border:none; border-radius:10px; color:white; font-weight:bold;">НАЧАТЬ</button>
-        </div>
-    </div>
-
-    <div id="profile-modal" onclick="this.style.display='none'">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <img id="pAva" src="" class="big-avatar">
-            <h2 id="pNick"></h2>
-            <button id="pWriteBtn" style="width:100%; padding:12px; background:var(--blue); border:none; border-radius:10px; color:white;">Написать</button>
-        </div>
-    </div>
-
-    <div id="app">
-        <div class="header">
-            <div style="display:flex; justify-content:space-between; align-items:center">
-                <b id="headTitle" style="color: var(--blue)">LiteGram</b>
-                <button id="backBtn" onclick="switchTab('private')" style="display:none; background:none; border:none; color:var(--blue)">← Назад</button>
-            </div>
-            <div class="tabs" id="mainTabs">
-                <button id="t-global" class="active" onclick="switchTab('global')">Общий</button>
-                <button id="t-private" onclick="switchTab('private')">Личные</button>
-                <button id="t-settings" onclick="switchTab('settings')">Настройки</button>
-            </div>
-        </div>
-
-        <div id="view-container">
-            <div id="v-global" class="view active"></div>
-            <div id="v-private" class="view"></div>
-            <div id="v-settings" class="view">
-                <div class="settings-top">
-                    <img id="myBigAva" src="" class="big-avatar" onclick="updateAva()">
-                    <div class="nick-edit">
-                        <span id="myNickDisplay"></span>
-                        <span onclick="updateNick()" style="cursor:pointer">✏️</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="input-area" id="inputBox" style="display:none">
-            <input type="text" id="mInput" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') send()">
-            <button class="send-btn" onclick="send()">➤</button>
-        </div>
-    </div>
-
-    <script>
-        const config = { databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(config);
-        const db = firebase.database();
-
-        let myNick = localStorage.getItem('chat_nick');
-        let curPeer = null;
-        const defAva = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-
-        if(!myNick) document.getElementById('auth').style.display='flex';
-        else start();
-
-        function register() {
-            let n = document.getElementById('regNick').value.trim();
-            let a = document.getElementById('regAva').value.trim() || defAva;
-            if(n) {
-                db.ref('profiles/'+n).set({ nick: n, ava: a }).then(() => {
-                    localStorage.setItem('chat_nick', n);
-                    location.reload();
-                });
-            }
-        }
-
-        function start() {
-            db.ref('profiles/'+myNick).on('value', s => {
-                const p = s.val();
-                document.getElementById('myBigAva').src = p.ava || defAva;
-                document.getElementById('myNickDisplay').innerText = p.nick;
-            });
-            switchTab('global');
-            listenFriends();
-        }
-
-        function switchTab(t) {
-            curPeer = null;
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.getElementById('v-'+t).classList.add('active');
-            if(document.getElementById('t-'+t)) document.getElementById('t-'+t).classList.add('active');
+        db.ref(path).on('value', snap => {
+            let typers = [];
+            const now = Date.now();
             
-            document.getElementById('inputBox').style.display = t==='global' ? 'flex' : 'none';
-            document.getElementById('mainTabs').style.display = 'flex';
-            document.getElementById('backBtn').style.display = 'none';
-            document.getElementById('headTitle').innerText = "LiteGram";
+            snap.forEach(user => {
+                // Если сигнал был меньше 3 секунд назад и это не я
+                if (now - user.val() < 3000 && user.key !== myID) {
+                    if (!isGlobal && user.key !== peerID) return; // В личке следим только за собеседником
+                    typers.push(user.key);
+                }
+            });
 
-            if(t === 'global') listenChat('messages', 'v-global');
-        }
-
-        function listenChat(path, viewId) {
-            const container = document.getElementById(viewId);
-            container.innerHTML = '';
-            db.ref(path).off();
-            db.ref(path).limitToLast(40).on('child_added', snap => {
-                const d = snap.val();
-                db.ref('profiles/'+d.u).once('value', ps => {
-                    const prof = ps.val() || {ava: defAva, nick: d.u};
-                    const row = document.createElement('div');
-                    const isMy = d.u === myNick;
-                    row.className = `msg-row ${isMy?'my':''}`;
-                    row.id = snap.key;
-                    row.innerHTML = `
-                        <img src="${prof.ava}" class="avatar" onclick="showProfile('${d.u}')">
-                        <div class="msg-bubble" onclick="${isMy?'delMsg(\''+path+'\',\''+snap.key+'\')':''}">
-                            <small>${prof.nick}</small>${d.m}
-                        </div>
-                    `;
-                    container.appendChild(row);
-                    container.scrollTop = container.scrollHeight;
+            if (typers.length > 0) {
+                // Получаем ник первого печатающего для красоты
+                db.ref('profiles/' + typers[0]).once('value', p => {
+                    const name = p.val() ? p.val().nick : 'Кто-то';
+                    const text = typers.length > 1 ? `${name} и еще ${typers.length-1} печатают` : `${name} печатает`;
+                    
+                    if (isGlobal) {
+                        disk.innerHTML = `<span class="typing-dots">${text}</span>`;
+                    } else {
+                        status.innerHTML = `<span style="color:var(--blue)" class="typing-dots">печатает</span>`;
+                    }
                 });
-            });
-        }
-
-        function showProfile(uid) {
-            if(uid === myNick) return switchTab('settings');
-            db.ref('profiles/'+uid).once('value', s => {
-                const p = s.val();
-                document.getElementById('pAva').src = p.ava || defAva;
-                document.getElementById('pNick').innerText = p.nick;
-                document.getElementById('pWriteBtn').onclick = () => {
-                    db.ref('friends/'+myNick+'/'+uid).set(true);
-                    db.ref('friends/'+uid+'/'+myNick).set(true);
-                    openPriv(uid);
-                    document.getElementById('profile-modal').style.display='none';
-                };
-                document.getElementById('profile-modal').style.display='flex';
-            });
-        }
-
-        function listenFriends() {
-            db.ref('friends/'+myNick).on('value', s => {
-                const v = document.getElementById('v-private'); v.innerHTML = '';
-                s.forEach(c => {
-                    db.ref('profiles/'+c.key).once('value', ps => {
-                        const p = ps.val() || {ava: defAva, nick: c.key};
-                        v.innerHTML += `<div class="user-card" onclick="openPriv('${c.key}')">
-                            <img src="${p.ava}" class="avatar">
-                            <b>${p.nick}</b>
-                        </div>`;
-                    });
-                });
-            });
-        }
-
-        function openPriv(uid) {
-            curPeer = uid;
-            document.getElementById('mainTabs').style.display = 'none';
-            document.getElementById('backBtn').style.display = 'block';
-            document.getElementById('headTitle').innerText = "@"+uid;
-            document.getElementById('v-global').classList.add('active');
-            document.getElementById('v-private').classList.remove('active');
-            document.getElementById('inputBox').style.display = 'flex';
-            let chatID = [myNick, uid].sort().join('_');
-            listenChat('privates/'+chatID, 'v-global');
-        }
-
-        function send() {
-            let i = document.getElementById('mInput'), v = i.value.trim();
-            if(!v) return;
-            let path = curPeer ? 'privates/'+[myNick, curPeer].sort().join('_') : 'messages';
-            db.ref(path).push({ u: myNick, m: v, t: Date.now() });
-            i.value = '';
-        }
-
-        function delMsg(path, id) { if(confirm("Удалить?")) db.ref(path+'/'+id).remove(); location.reload(); }
-
-        function updateAva() {
-            let a = prompt("Ссылка на новое фото:");
-            if(a) db.ref('profiles/'+myNick+'/ava').set(a);
-        }
-
-        function updateNick() {
-            let n = prompt("Новый ник:");
-            if(n) {
-                db.ref('profiles/'+myNick+'/nick').set(n);
-                alert("Ник изменен! Обновите страницу.");
+            } else {
+                disk.innerHTML = '';
+                if (!isGlobal) status.innerText = 'online';
             }
+        });
+    }
+
+    // 3. Обнови функцию openChat, чтобы она включала нужный режим слежки
+    function openChat(id) {
+        curPeer = id === 'global' ? null : id;
+        
+        if(window.innerWidth <= 768) {
+            document.getElementById('chatMain').classList.add('active');
         }
-    </script>
-</body>
-</html>
+
+        document.getElementById('inputBox').style.display = 'flex';
+        document.getElementById('msgs-container').innerHTML = '';
+        
+        // Сбрасываем старые слушатели печати
+        db.ref('typing/global').off();
+        db.ref('typing/privates/' + myID).off();
+
+        if(!curPeer) {
+            document.getElementById('chatTitle').innerText = 'Общий чат';
+            document.getElementById('chatStatus').innerText = 'все участники';
+            listenChat('messages');
+            listenTyping(true); // Включаем глобальную печать
+        } else {
+            db.ref('profiles/'+id).once('value', s => { 
+                document.getElementById('chatTitle').innerText = s.val().nick; 
+            });
+            listenChat('privates/' + [myID, id].sort().join('_'));
+            listenTyping(false, id); // Включаем личную печать для конкретного друга
+        }
+    }
+           </script>
+
