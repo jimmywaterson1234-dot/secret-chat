@@ -20,7 +20,7 @@
         
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 500; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
-        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #1c2835; cursor: pointer; transition: 0.2s; }
+        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #1c2835; cursor: pointer; }
         .chat-item.selected { background: var(--accent) !important; border-left: 4px solid var(--blue); }
 
         #chatMain { display: none; flex-direction: column; height: 100%; width: 100%; position: relative; z-index: 600; background: transparent; }
@@ -43,11 +43,11 @@
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 
-        .btn-voice { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .btn-voice { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; }
         .recording { background: #ff595a !important; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
-        #fwd-bar { display: none; background: var(--accent); padding: 10px; text-align: center; font-weight: bold; cursor: pointer; }
+        #fwd-bar { display: none; background: var(--accent); padding: 12px; text-align: center; font-weight: bold; cursor: pointer; border-bottom: 1px solid gold; }
     </style>
 </head>
 <body>
@@ -56,11 +56,8 @@
 
 <div id="app">
     <div id="sidePanel">
-        <div class="header">
-            <b>Spark</b>
-            <span onclick="toggleModal('settings-modal', true)" style="font-size:24px; cursor:pointer">⚙️</span>
-        </div>
-        <div id="fwd-bar" onclick="finishMultiFwd()">Отправить в выбранные (<span id="fwd-count">0</span>)</div>
+        <div class="header"><b>Spark</b> <span onclick="toggleModal('settings-modal', true)" style="font-size:24px; cursor:pointer">⚙️</span></div>
+        <div id="fwd-bar" onclick="finishMultiFwd()">Переслать в выбранные (<span id="fwd-count">0</span>)</div>
         <div id="chat-list">
             <div class="chat-item" id="item-global" onclick="handleChatClick('global')">
                 <div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div>
@@ -80,7 +77,7 @@
         <div class="input-area">
             <button onclick="sendMedia()" style="background:none; border:none; font-size:22px">🖼️</button>
             <input id="mInput" placeholder="Сообщение..." autocomplete="off">
-            <button id="voiceBtn" class="btn-voice">🎙️</button>
+            <button id="voiceBtn" class="btn-voice" onclick="toggleVoice()">🎙️</button>
             <button onclick="sendMsg()" style="background:none; border:none; font-size:24px">➤</button>
         </div>
     </div>
@@ -117,12 +114,11 @@
     let curPeer = null;
     let selectedMsg = null;
     let multiFwdTargets = [];
-    let mediaRecorder; let audioChunks = [];
+    let mediaRecorder; let audioChunks = []; let isRecording = false;
 
     window.onload = () => { 
         if(localStorage.getItem('spark_wall')) document.getElementById('wall-layer').style.backgroundImage = `url(${localStorage.getItem('spark_wall')})`;
         if(myID) startApp(); else auth(); 
-        initVoice();
     };
 
     function auth() {
@@ -172,18 +168,32 @@
             const m = snap.val(); const isMy = m.u === myID;
             const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
             let content = m.m;
-            if(m.type === 'voice') content = `<audio controls src="${m.m}" style="width:200px"></audio>`;
+            if(m.type === 'voice') content = `<audio controls src="${m.m}" style="width:180px"></audio>`;
             else if(m.m.startsWith('http')) content = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
 
-            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="fwdPrompt('${m.m}', '${m.u}')">${m.f_name ? `<span class="fwd-info">От ${m.f_name}</span>` : ''}${content}${isMy?'<span class="ticks">✔✔</span>':''}</div></div>`;
+            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="msgAction('${snap.key}', '${m.m.replace(/'/g,"")}', '${m.u}')">${m.f_name ? `<span class="fwd-info">От ${m.f_name}</span>` : ''}${content}${isMy?'<span class="ticks">✔✔</span>':''}</div></div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
             db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); } });
         });
     }
 
+    function msgAction(msgId, txt, uid) {
+        if(uid === myID) {
+            const act = confirm("ОК - Переслать, ОТМЕНА - Удалить");
+            if(act) fwdPrompt(txt, uid); else deleteMsg(msgId);
+        } else {
+            fwdPrompt(txt, uid);
+        }
+    }
+
+    function deleteMsg(msgId) {
+        const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        db.ref(path+'/'+msgId).remove();
+    }
+
     function fwdPrompt(txt, uid) {
         db.ref('profiles/'+uid).once('value', s => {
-            if(confirm("Переслать?")) { selectedMsg = { txt: txt, from: s.val().nick }; goBack(); }
+            selectedMsg = { txt: txt, from: s.val().nick }; goBack();
         });
     }
 
@@ -192,10 +202,43 @@
             const path = id === 'global' ? 'messages' : 'privates/'+[myID, id].sort().join('_');
             db.ref(path).push({ u: myID, m: selectedMsg.txt, f_name: selectedMsg.from, t: Date.now() });
         });
-        alert("Переслано!");
         selectedMsg = null; multiFwdTargets = [];
         document.getElementById('fwd-bar').style.display = 'none';
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('selected'));
+    }
+
+    // ГОЛОСОВЫЕ (Нажать 1 раз - запись, Нажать на отправить - стоп и улет)
+    async function toggleVoice() {
+        if(!isRecording) {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+                    db.ref(path).push({ u: myID, m: reader.result, type: 'voice', t: Date.now() });
+                };
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            document.getElementById('voiceBtn').classList.add('recording');
+        }
+    }
+
+    function sendMsg() {
+        if(isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            document.getElementById('voiceBtn').classList.remove('recording');
+            return;
+        }
+        const i = document.getElementById('mInput'), v = i.value.trim(); if(!v) return;
+        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        db.ref(p).push({ u: myID, m: v, t: Date.now() }); i.value = '';
     }
 
     function showProfile(uid) {
@@ -207,35 +250,6 @@
     }
 
     function addAndWrite(uid) { db.ref('friends/'+myID+'/'+uid).set(true); db.ref('friends/'+uid+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(uid); }
-
-    function initVoice() {
-        const btn = document.getElementById('voiceBtn');
-        btn.onmousedown = btn.ontouchstart = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                    const base64data = reader.result;
-                    const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-                    db.ref(path).push({ u: myID, m: base64data, type: 'voice', t: Date.now() });
-                };
-                audioChunks = [];
-            };
-            mediaRecorder.start(); btn.classList.add('recording');
-        };
-        btn.onmouseup = btn.ontouchend = () => { if(mediaRecorder) { mediaRecorder.stop(); btn.classList.remove('recording'); } };
-    }
-
-    function sendMsg() {
-        const i = document.getElementById('mInput'), v = i.value.trim(); if(!v) return;
-        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-        db.ref(p).push({ u: myID, m: v, t: Date.now() }); i.value = '';
-    }
-
     function checkSigma() { if(prompt("Пароль:") === '1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); } }
     function loadSigma() {
         const list = document.getElementById('sigma-list'); list.innerHTML = '';
