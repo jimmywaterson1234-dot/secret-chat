@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiteGram Pro</title>
+    <title>LiteGram Social (Imbo UI)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
+        /* СОХРАНЯЕМ ИМБО ИНТЕРФЕЙС */
         :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3; }
         body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Авторизация */
         #auth { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .auth-card { background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 300px; }
 
-        /* Интерфейс */
         .sidebar { background: var(--panel); padding: 10px; border-bottom: 1px solid #000; }
         .nav-tabs { display: flex; gap: 5px; margin-top: 10px; }
         .nav-tabs button { flex: 1; padding: 8px; font-size: 12px; background: #242f3d; border: none; color: white; border-radius: 5px; cursor: pointer; }
@@ -31,6 +30,19 @@
 
         .input-area { background: var(--panel); padding: 15px; display: none; gap: 10px; }
         input { flex: 1; background: #242f3d; border: none; color: white; padding: 12px; border-radius: 8px; outline: none; }
+        
+        /* Кнопка ПЛЮСИК с анимацией */
+        #plus-btn { 
+            background: var(--blue); 
+            border: none; 
+            color: white; 
+            width: 30px; height: 30px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: background 0.2s;
+        }
+        .btn-clicked { background: gray !important; }
+
         button.send-btn { background: var(--blue); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
@@ -47,14 +59,14 @@
     <div class="sidebar">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <b id="myLabel">@...</b>
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 10px; align-items: center;">
                 <input type="text" id="searchInp" placeholder="Найти @..." style="width: 100px; font-size: 12px; padding: 5px;">
-                <button onclick="sendRequest()" style="font-size: 12px;">+</button>
+                <button id="plus-btn" onclick="handlePlusClick()">+</button>
             </div>
         </div>
         <div class="nav-tabs">
             <button id="tab-chats" class="active" onclick="switchTab('chats')">Чаты</button>
-            <button id="tab-friends" onclick="switchTab('friends')">Друзья</button>
+            <button id="tab-friends" onclick="showFriendsTab()">Друзья</button>
             <button id="tab-reqs" onclick="switchTab('reqs')">Заявки <span id="req-count" class="badge">0</span></button>
         </div>
     </div>
@@ -78,10 +90,11 @@
         let myNick = localStorage.getItem('chat_nick');
         let currentPeer = null;
 
-        if (!myNick) { document.getElementById('auth').style.display = 'flex'; } 
-        else { 
+        if (!myNick) { 
+            document.getElementById('auth').style.display = 'flex'; 
+        } else { 
             document.getElementById('myLabel').innerText = "@" + myNick;
-            db.ref('users/' + myNick).set(true);
+            db.ref('users/' + myNick).set(true); // Регистрируем ник в системе
             initApp();
         }
 
@@ -90,8 +103,15 @@
             if (n) { localStorage.setItem('chat_nick', n); location.reload(); }
         }
 
+        function handlePlusClick() {
+            const btn = document.getElementById('plus-btn');
+            btn.classList.add('btn-clicked'); // Становится серым
+            setTimeout(() => btn.classList.remove('btn-clicked'), 1000); // Возвращается через секунду
+            sendRequest();
+        }
+
         function initApp() {
-            // Слушаем заявки
+            // Слушаем заявки и обновляем счетчик в реальном времени
             db.ref('requests/' + myNick).on('value', (s) => {
                 const count = s.numChildren();
                 const badge = document.getElementById('req-count');
@@ -99,17 +119,19 @@
                 badge.style.display = count > 0 ? 'inline' : 'none';
                 renderRequests(s);
             });
-            renderFriends();
         }
 
         function sendRequest() {
             let target = document.getElementById('searchInp').value.replace('@', '').trim();
             if (!target || target === myNick) return;
+
+            // Проверяем наличие пользователя и отправляем заявку
             db.ref('users/' + target).once('value', (s) => {
                 if (s.exists()) {
                     db.ref('requests/' + target + '/' + myNick).set(true);
                     alert("Заявка отправлена @"+target);
-                } else { alert("Пользователь не найден"); }
+                    document.getElementById('searchInp').value = "";
+                } else { alert("Пользователь @"+target+" еще не пользуется LiteGram"); }
             });
         }
 
@@ -128,14 +150,16 @@
         function acceptFriend(name) {
             db.ref('friends/' + myNick + '/' + name).set(true);
             db.ref('friends/' + name + '/' + myNick).set(true);
-            db.ref('requests/' + myNick + '/' + name).remove();
+            db.ref('requests/' + myNick + '/' + name).remove(); // Удаляем из заявок
             alert("Теперь вы друзья с @" + name);
+            switchTab('friends');
         }
 
-        function renderFriends() {
-            db.ref('friends/' + myNick).on('value', (s) => {
-                const view = document.getElementById('friends-view');
-                view.innerHTML = "<h4 style='margin:15px'>Ваши друзья:</h4>";
+        function showFriendsTab() {
+            switchTab('friends');
+            const view = document.getElementById('friends-view');
+            view.innerHTML = "<h4 style='margin:15px'>Ваши друзья:</h4>";
+            db.ref('friends/' + myNick).once('value', (s) => {
                 s.forEach((child) => {
                     let name = child.key;
                     view.innerHTML += `<div class="list-item">
@@ -152,10 +176,9 @@
             document.getElementById('chat-bar').style.display = 'flex';
             document.getElementById('msgs').innerHTML = "";
             
-            // ИСПРАВЛЕНИЕ БАГА: Уникальный ID чата для обоих
             let chatId = [myNick, name].sort().join('___');
             db.ref('chats/' + chatId).off(); 
-            db.ref('chats/' + chatId).limitToLast(50).on('child_added', (snap) => {
+            db.ref('chats/' + chatId).limitToLast(100).on('child_added', (snap) => {
                 const data = snap.val();
                 const d = document.createElement('div');
                 d.className = `msg ${data.u === myNick ? 'my' : ''}`;
@@ -169,11 +192,7 @@
             const inp = document.getElementById('mInput');
             if (!inp.value || !currentPeer) return;
             let chatId = [myNick, currentPeer].sort().join('___');
-            db.ref('chats/' + chatId).push({
-                u: myNick,
-                m: inp.value,
-                t: Date.now()
-            });
+            db.ref('chats/' + chatId).push({ u: myNick, m: inp.value, t: Date.now() });
             inp.value = "";
         }
 
