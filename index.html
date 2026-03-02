@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Fixed</title>
+    <title>Spark Live Edition</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -14,8 +14,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
         body, html { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; }
         
-        #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.3; z-index: 0; }
-
+        #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.3; z-index: 0; pointer-events: none; }
         #app { display: flex; height: 100dvh; width: 100vw; flex-direction: column; position: relative; z-index: 10; }
 
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
@@ -29,59 +28,32 @@
         #chatMain { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; }
         #chatMain.active { display: flex; }
         
-        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
 
-        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; }
+        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 8px 12px; border-radius: 16px; font-size: 15px; word-wrap: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; }
+        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
         
         .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; }
 
-        /* ИСПРАВЛЕННЫЙ БЛОК ВВОДА */
-        .input-area { 
-            padding: 10px; 
-            background: var(--panel); 
-            display: flex; 
-            align-items: flex-end; 
-            gap: 8px; 
-            border-top: 1px solid #000;
-        }
+        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #000; }
+        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; font-size: 16px; outline: none; resize: none; max-height: 120px; min-height: 40px; font-family: inherit; line-height: 1.4; }
 
-        #mInput { 
-            flex: 1; 
-            background: #242f3d; 
-            border: none; 
-            color: white; 
-            padding: 10px 15px; 
-            border-radius: 18px; 
-            font-size: 16px; 
-            outline: none; 
-            resize: none; 
-            max-height: 100px; 
-            min-height: 40px;
-            font-family: inherit;
-        }
-
-        .btn-action { 
-            width: 44px; height: 44px; 
-            display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; flex-shrink: 0; border: none; background: none; color: var(--blue);
-        }
-
+        .btn-action { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: none; background: none; color: var(--blue); }
         .btn-voice { background: var(--blue); border-radius: 50%; color: white; font-size: 20px; }
         .recording { background: #ff595a !important; animation: pulse 1s infinite; }
-
         .send-btn { font-size: 28px; margin-right: 5px; }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        
-        #fwd-bar { display: none; background: var(--accent); padding: 12px; text-align: center; font-weight: bold; border-bottom: 1px solid gold; cursor: pointer; }
-        
+        #chatSubtitle { font-size: 11px; color: var(--blue); display: block; font-weight: normal; margin-top: 2px; }
+        .online-dot { color: #4caf50; }
+
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .sigma-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid #1c2835; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -91,7 +63,7 @@
 <div id="app">
     <div id="sidePanel">
         <div class="header"><b>Spark</b> <span onclick="toggleModal('settings-modal', true)" style="font-size:24px; cursor:pointer">⚙️</span></div>
-        <div id="fwd-bar" onclick="finishMultiFwd()">🚀 Отправить в выбранные (<span id="fwd-count">0</span>)</div>
+        <div id="fwd-bar" style="display:none; background:var(--accent); padding:12px; text-align:center; font-weight:bold; border-bottom:1px solid gold; cursor:pointer;" onclick="finishMultiFwd()">🚀 Отправить (<span id="fwd-count">0</span>)</div>
         <div id="chat-list" style="flex:1; overflow-y:auto">
             <div class="chat-item" id="item-global" onclick="handleChatClick('global')">
                 <div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div>
@@ -104,7 +76,10 @@
         <div class="header">
             <div style="display:flex; align-items:center; gap:12px">
                 <span onclick="goBack()" style="font-size:30px; color:var(--blue); cursor:pointer; padding:5px">‹</span>
-                <b id="chatTitle">Чат</b>
+                <div>
+                    <b id="chatTitle">Чат</b>
+                    <span id="chatSubtitle">Загрузка...</span>
+                </div>
             </div>
         </div>
         <div id="msgs-container"></div>
@@ -115,11 +90,6 @@
             <button onclick="sendMsg()" class="btn-action send-btn">➤</button>
         </div>
     </div>
-</div>
-
-<div id="profile-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
-    <div id="profile-content" style="padding:40px; text-align:center"></div>
 </div>
 
 <div id="settings-modal" class="modal">
@@ -133,6 +103,14 @@
         <div class="setting-row" onclick="localStorage.clear(); location.reload();" style="color:#ff595a"><span>🚪 Выйти</span></div>
     </div>
 </div>
+<div id="sigma-modal" class="modal">
+    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA CONTROL</b></div>
+    <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
+</div>
+<div id="profile-modal" class="modal">
+    <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
+    <div id="profile-content" style="padding:40px; text-align:center"></div>
+</div>
 
 <script>
     const config = { databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" };
@@ -141,31 +119,33 @@
 
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
+    let myNick = "";
     let selectedMsg = null;
     let multiFwdTargets = [];
     let isRecording = false;
     let mediaRecorder;
     let audioChunks = [];
+    let typingTimer;
 
     window.onload = () => {
         if(localStorage.getItem('spark_wall')) document.getElementById('wall-layer').style.backgroundImage = `url(${localStorage.getItem('spark_wall')})`;
         if(myID) startApp(); else auth();
     };
 
-    function auth() {
-        let n = prompt("Ник:"); if(!n) return auth();
-        db.ref('nick_to_id/'+n).once('value', s => {
-            let id = s.val() || Date.now().toString();
-            if(!s.val()) {
-                db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id});
-                db.ref('nick_to_id/'+n).set(id);
-            }
-            localStorage.setItem('chat_id', id); location.reload();
-        });
-    }
-
     function startApp() {
-        db.ref('profiles/'+myID).on('value', s => { if(s.val()) document.getElementById('st-nick').innerText = s.val().nick; });
+        // Статус Online
+        const userStatusRef = db.ref('status/' + myID);
+        userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
+        userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP });
+
+        db.ref('profiles/'+myID).on('value', s => { 
+            if(s.val()) {
+                document.getElementById('st-nick').innerText = s.val().nick;
+                myNick = s.val().nick;
+            }
+        });
+
+        // Список чатов
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
             const global = document.getElementById('item-global');
@@ -183,22 +163,43 @@
         });
     }
 
-    function handleChatClick(id) {
-        if(selectedMsg) {
-            const tid = id === 'global' ? 'item-global' : 'li-'+id;
-            const idx = multiFwdTargets.indexOf(id);
-            if(idx > -1) { multiFwdTargets.splice(idx,1); document.getElementById(tid).classList.remove('selected'); }
-            else { multiFwdTargets.push(id); document.getElementById(tid).classList.add('selected'); }
-            document.getElementById('fwd-bar').style.display = multiFwdTargets.length > 0 ? 'block' : 'none';
-            document.getElementById('fwd-count').innerText = multiFwdTargets.length;
-        } else { openChat(id); }
-    }
-
     function openChat(id) {
         curPeer = id === 'global' ? null : id;
         document.getElementById('sidePanel').classList.add('hidden');
         document.getElementById('chatMain').classList.add('active');
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        const subtitle = document.getElementById('chatSubtitle');
+        
+        // Очистка подзаголовка
+        subtitle.innerText = "...";
+
+        // Статус печати и Онлайн
+        if(!curPeer) {
+            // В общем чате: количество онлайн
+            db.ref('status').on('value', s => {
+                let count = 0;
+                s.forEach(u => { if(u.val().state === 'online') count++; });
+                subtitle.innerText = count + " человек(а) онлайн";
+            });
+        } else {
+            // В ЛС: статус собеседника
+            db.ref('status/' + curPeer).on('value', s => {
+                if(s.val() && s.val().state === 'online') subtitle.innerHTML = "<span class='online-dot'>●</span> в сети";
+                else subtitle.innerText = "офлайн";
+            });
+        }
+
+        // Индикатор "печатает..."
+        const typingRef = db.ref('typing/' + (curPeer ? [myID, curPeer].sort().join('_') : 'global'));
+        typingRef.on('value', s => {
+            s.forEach(u => {
+                if(u.key !== myID && u.val().isTyping) {
+                    subtitle.innerText = u.val().nick + " печатает...";
+                }
+            });
+        });
+
+        // Сообщения
         const cont = document.getElementById('msgs-container');
         cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
@@ -207,15 +208,24 @@
             let content = m.m;
             if(m.type === 'voice') content = `<audio controls src="${m.m}" style="width:180px"></audio>`;
             else if(String(m.m).startsWith('http')) content = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
-            
-            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).replace(/'/g,"")}', '${m.u}')">${m.f_name ? `<span class="fwd-info">От ${m.f_name}</span>` : ''}${content}${isMy?'<span class="ticks">✔✔</span>':''}</div></div>`;
+            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')"><div style="display:flex; flex-direction:column"><span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span><div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).replace(/'/g,"")}', '${m.u}')">${m.f_name ? `<span style="font-size:10px; color:var(--blue); display:block">Переслано от ${m.f_name}</span>` : ''}${content}${isMy?'<span style="font-size:10px; margin-left:5px">✔✔</span>':''}</div></div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
             db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); } });
         });
     }
 
     const tx = document.getElementById('mInput');
-    tx.oninput = function() { this.style.height = "40px"; this.style.height = this.scrollHeight + "px"; };
+    tx.oninput = function() {
+        this.style.height = "40px"; this.style.height = this.scrollHeight + "px";
+        // Отправка статуса печати
+        const typingPath = curPeer ? [myID, curPeer].sort().join('_') : 'global';
+        db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: true, nick: myNick });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            db.ref('typing/' + typingPath + '/' + myID).set({ isTyping: false });
+        }, 2000);
+    };
+
     tx.onkeydown = (e) => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } };
 
     function sendMsg() {
@@ -223,9 +233,30 @@
         const v = tx.value.trim(); if(!v) return;
         const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         db.ref(p).push({ u: myID, m: v, t: Date.now() });
+        db.ref('typing/' + (curPeer ? [myID, curPeer].sort().join('_') : 'global') + '/' + myID).set({ isTyping: false });
         tx.value = ''; tx.style.height = "40px";
     }
 
+    // Сигма-панель
+    function checkSigma() {
+        if(prompt("Введи код доступа:") === '1234567891011121314151617181920') {
+            toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma();
+        } else alert("Неверно!");
+    }
+    function loadSigma() {
+        const list = document.getElementById('sigma-list'); list.innerHTML = '';
+        db.ref('profiles').once('value', s => {
+            s.forEach(u => {
+                const p = u.val(); const div = document.createElement('div'); div.className = 'sigma-card';
+                div.innerHTML = `<img src="${p.ava}" class="ava-msg"><b>${p.nick}</b> <div style="margin-left:auto"><button onclick="sL('${u.key}')">Вход</button> <button onclick="sD('${u.key}', '${p.nick}')">Удалить</button></div>`;
+                list.appendChild(div);
+            });
+        });
+    }
+    function sL(id) { localStorage.setItem('chat_id', id); location.reload(); }
+    function sD(id, n) { if(confirm("Удалить?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+n).remove(); location.reload(); } }
+
+    // Стандартные функции
     async function toggleVoice() {
         if(!isRecording) {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -243,7 +274,16 @@
         }
     }
     function stopVoiceAndSend() { if(mediaRecorder && isRecording) { mediaRecorder.stop(); isRecording = false; document.getElementById('voiceBtn').classList.remove('recording'); } }
-
+    function handleChatClick(id) {
+        if(selectedMsg) {
+            const tid = id === 'global' ? 'item-global' : 'li-'+id;
+            const idx = multiFwdTargets.indexOf(id);
+            if(idx > -1) { multiFwdTargets.splice(idx,1); document.getElementById(tid).classList.remove('selected'); }
+            else { multiFwdTargets.push(id); document.getElementById(tid).classList.add('selected'); }
+            document.getElementById('fwd-bar').style.display = multiFwdTargets.length > 0 ? 'block' : 'none';
+            document.getElementById('fwd-count').innerText = multiFwdTargets.length;
+        } else { openChat(id); }
+    }
     function msgAction(id, txt, uid) {
         if(uid === myID) {
             if(confirm("ОК - Переслать, ОТМЕНА - Удалить")) fwdPrompt(txt, uid); else deleteMsg(id);
@@ -259,7 +299,12 @@
         selectedMsg = null; multiFwdTargets = []; document.getElementById('fwd-bar').style.display = 'none';
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('selected'));
     }
-
+    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
+    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); curPeer = null; }
+    function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
+    function changeAva() { let a = prompt("URL:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
+    function changeWall() { let w = prompt("URL:"); if(w){ localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
+    function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now() }); } }
     function showProfile(uid) {
         db.ref('profiles/'+uid).once('value', s => {
             const p = s.val();
@@ -268,13 +313,17 @@
         });
     }
     function addAndWrite(uid) { db.ref('friends/'+myID+'/'+uid).set(true); db.ref('friends/'+uid+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(uid); }
-    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); curPeer = null; }
-    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
-    function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
-    function changeAva() { let a = prompt("URL:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
-    function changeWall() { let w = prompt("URL:"); if(w){ localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
-    function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now() }); } }
+    function auth() {
+        let n = prompt("Ник:"); if(!n) return auth();
+        db.ref('nick_to_id/'+n).once('value', s => {
+            let id = s.val() || Date.now().toString();
+            if(!s.val()) {
+                db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id});
+                db.ref('nick_to_id/'+n).set(id);
+            }
+            localStorage.setItem('chat_id', id); location.reload();
+        });
+    }
 </script>
 </body>
 </html>
-
