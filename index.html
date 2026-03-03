@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Evolution</title>
+    <title>Spark Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -20,7 +20,7 @@
         #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .auth-box { background: var(--panel); padding: 25px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; }
         .auth-box input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #242f3d; color: white; outline: none; }
-        .auth-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; background: var(--blue); color: white; font-weight: bold; }
+        .auth-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; background: var(--blue); color: white; font-weight: bold; cursor: pointer;}
 
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; }
@@ -31,8 +31,9 @@
         #chatMain.active { display: flex; }
         
         #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
+        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; margin-bottom: 5px; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
+        
         .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; cursor: pointer; position: relative; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
@@ -44,9 +45,13 @@
         #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; outline: none; resize: none; max-height: 120px; min-height: 40px; }
 
         .btn-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: none; color: var(--blue); font-size: 24px; }
+        
+        /* Modals */
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        
+        .recording { background: #ff595a !important; border-radius: 50%; }
     </style>
 </head>
 <body>
@@ -55,24 +60,24 @@
 
 <div id="auth-screen" style="display: none;">
     <div class="auth-box" id="login-form">
-        <h2>Spark Login</h2>
+        <h2>Вход</h2>
         <input type="text" id="log-user" placeholder="Логин">
         <input type="password" id="log-pass" placeholder="Пароль">
         <button onclick="handleLogin()">Войти</button>
         <p onclick="toggleAuth(false)" style="color:var(--blue); cursor:pointer; margin-top:15px">Регистрация</p>
     </div>
     <div class="auth-box" id="reg-form" style="display: none;">
-        <h2>Spark Reg</h2>
+        <h2>Создать аккаунт</h2>
         <input type="text" id="reg-user" placeholder="Логин">
         <input type="password" id="reg-pass" placeholder="Пароль">
         <button onclick="handleReg()">Создать</button>
-        <p onclick="toggleAuth(true)" style="color:var(--blue); cursor:pointer; margin-top:15px">Есть аккаунт</p>
+        <p onclick="toggleAuth(true)" style="color:var(--blue); cursor:pointer; margin-top:15px">Уже есть аккаунт</p>
     </div>
 </div>
 
 <div id="app">
     <div id="sidePanel">
-        <div class="header"><b>Spark</b> <div><span onclick="createGroup()" style="font-size: 20px; margin-right: 15px; cursor: pointer;">👥+</span><span onclick="toggleModal('settings-modal', true)" style="cursor:pointer">⚙️</span></div></div>
+        <div class="header"><b>Spark</b> <div><span onclick="createGroup()" style="cursor:pointer; margin-right:15px">👥+</span><span onclick="toggleModal('settings-modal', true)" style="cursor:pointer">⚙️</span></div></div>
         <div id="chat-list" style="flex:1; overflow-y:auto">
             <div class="chat-item" onclick="openChat('global')">
                 <div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div>
@@ -102,7 +107,9 @@
 <div id="settings-modal" class="modal">
     <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
     <div class="setting-row" onclick="changeNick()">👤 Ник <span id="st-nick"></span></div>
-    <div class="setting-row" onclick="changeAva()">🖼️ Сменить фото</div>
+    <div class="setting-row" onclick="changeAva()">🖼️ Аватарка (URL)</div>
+    <div class="setting-row" onclick="changeBio()">📝 О себе</div>
+    <div class="setting-row" onclick="changePass()">🔑 Сменить пароль</div>
     <div class="setting-row" style="background:gold; color:black;" onclick="checkSigma()">⚡ СИГМА ПАНЕЛЬ</div>
     <div class="setting-row" onclick="logout()" style="color:red">🚪 Выйти</div>
 </div>
@@ -124,31 +131,26 @@
 
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
-    let typingTimeout;
+    let isRecording = false, mediaRecorder, audioChunks = [], typingTimeout;
 
-    window.onload = () => {
-        if (!myID) document.getElementById('auth-screen').style.display = 'flex';
-        else startApp();
-    };
+    window.onload = () => { if (!myID) document.getElementById('auth-screen').style.display = 'flex'; else startApp(); };
+
+    function toggleAuth(s) { document.getElementById('login-form').style.display = s ? 'block' : 'none'; document.getElementById('reg-form').style.display = s ? 'none' : 'block'; }
 
     function startApp() {
         db.ref('status/'+myID).set({state:'online'});
         db.ref('status/'+myID).onDisconnect().set({state:'offline'});
         db.ref('profiles/'+myID).on('value', s => { if(s.val()) document.getElementById('st-nick').innerText = s.val().nick; });
 
-        // Список чатов (Лички + Группы)
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
             list.innerHTML = '<div class="chat-item" onclick="openChat(\'global\')"><div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div><b>Общий чат</b></div>';
             s.forEach(f => {
-                db.ref(f.val().isGroup ? 'groups/'+f.key : 'profiles/'+f.key).once('value', p => {
-                    if(p.val()) {
-                        const isG = f.val().isGroup;
-                        list.innerHTML += `<div class="chat-item" onclick="openChat('${p.key}', ${isG})">
-                            <div class="ava-msg" style="background:${isG?'#2b5278':'#50a2e3'}; display:flex; align-items:center; justify-content:center;">${isG?'👥':`<img src="${p.val().ava}" class="ava-msg">`}</div>
-                            <b>${isG ? p.val().name : p.val().nick}</b>
-                        </div>`;
-                    }
+                const isG = f.val().isGroup;
+                db.ref(isG ? 'groups/'+f.key : 'profiles/'+f.key).once('value', p => {
+                    if(p.val()) list.innerHTML += `<div class="chat-item" onclick="openChat('${p.key}', ${isG})">
+                        <img src="${isG ? 'https://cdn-icons-png.flaticon.com/512/32/32441.png' : p.val().ava}" class="ava-msg">
+                        <b>${isG ? p.val().name : p.val().nick}</b></div>`;
                 });
             });
         });
@@ -160,13 +162,13 @@
         document.getElementById('chatMain').classList.add('active');
         const path = curPeer ? (isGroup ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
         
-        // Статус Печатает и Онлайн
+        // Статусы
         if(!curPeer) {
             db.ref('status').on('value', s => { let c=0; s.forEach(u=>{if(u.val().state==='online')c++}); document.getElementById('chatSubtitle').innerText = c+" онлайн"; });
         } else if(!isGroup) {
             db.ref('typing/'+curPeer+'/'+myID).on('value', s => {
                 if(s.val()) document.getElementById('chatSubtitle').innerText = "печатает...";
-                else db.ref('status/'+curPeer).once('value', st => { document.getElementById('chatSubtitle').innerText = st.val()?.state==='online' ? 'в сети' : 'офлайн'; });
+                else db.ref('status/'+curPeer).on('value', st => { document.getElementById('chatSubtitle').innerText = st.val()?.state==='online' ? 'в сети' : 'офлайн'; });
             });
         }
 
@@ -174,82 +176,109 @@
         cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
             const m = snap.val(); const isMy = m.u === myID;
-            if(!isMy) playNotify(); // Звук при входящем
+            if(!isMy) playNotify();
 
             const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
-            let content = m.type === 'image' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px;">` : (m.type === 'voice' ? `<audio src="${m.m}" controls></audio>` : m.m);
+            let content = m.type==='image' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px">` : (m.type==='voice' ? `<audio src="${m.m}" controls></audio>` : m.m);
+            
             row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')">
-                <div class="bubble">${content}${isMy?`<span class="status-tick">${m.read?'✔✔':'✔'}</span>`:''}</div>`;
+                <div class="bubble" onclick="msgAction('${snap.key}', '${m.u}', '${m.m}')">
+                    ${content}
+                    ${isMy ? `<span class="status-tick">${m.read ? '✔✔' : '✔'}</span>` : ''}
+                </div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            if(!isMy) db.ref(path+'/'+snap.key).update({read:true});
+            if(!isMy && !m.read) db.ref(path+'/'+snap.key).update({read:true});
             db.ref('profiles/'+m.u).once('value', p => { if(p.val()) document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=p.val().ava); });
         });
     }
 
+    function msgAction(id, uid, text) {
+        const path = curPeer ? (curPeer.startsWith('g') ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+        if(uid === myID) { if(confirm("Удалить сообщение?")) db.ref(path+'/'+id).remove(); }
+        else { if(confirm("Переслать?")) { let tid = prompt("Кому (логин):"); if(tid) db.ref('nick_to_id/'+tid.toLowerCase()).once('value', s => {
+            if(s.exists()) db.ref('privates/'+[myID, s.val()].sort().join('_')).push({u:myID, m:"[Переслано]: "+text, t:Date.now(), read:false});
+        }); }}
+    }
+
+    function showProfile(uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            const p = s.val();
+            document.getElementById('profile-content').innerHTML = `
+                <img src="${p.ava}" style="width:120px; height:120px; border-radius:50%; object-fit:cover;">
+                <h2>${p.nick}</h2><p>${p.bio || "Скрытно"}</p>
+                <button onclick="addFriend('${p.id}')" style="background:var(--blue); color:white; border:none; padding:10px 20px; border-radius:10px;">Написать</button>`;
+            toggleModal('profile-modal', true);
+        });
+    }
+
+    function addFriend(id) { db.ref('friends/'+myID+'/'+id).set({isGroup:false}); db.ref('friends/'+id+'/'+myID).set({isGroup:false}); toggleModal('profile-modal', false); openChat(id); }
+
     function handleTyping() {
-        if(!curPeer) return;
+        if(!curPeer || curPeer.startsWith('g')) return;
         db.ref('typing/'+myID+'/'+curPeer).set(true);
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => db.ref('typing/'+myID+'/'+curPeer).remove(), 2000);
     }
 
     function playNotify() {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.start(); osc.stop(ctx.currentTime + 0.1);
-            if(navigator.vibrate) navigator.vibrate(50);
-        } catch(e) {}
+        try { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 800; gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1); osc.start(); osc.stop(ctx.currentTime + 0.1); if(navigator.vibrate) navigator.vibrate(50); } catch(e){}
     }
 
-    function createGroup() {
-        const name = prompt("Название группы:");
-        const user2 = prompt("Логин первого участника:");
-        if(!name || !user2) return;
-        db.ref('nick_to_id/'+user2.toLowerCase()).once('value', s => {
-            if(!s.exists()) return alert("Пользователь не найден");
-            const gid = "g" + Date.now();
-            const gData = {name: name, creator: myID, members: [myID, s.val()]};
-            db.ref('groups/'+gid).set(gData);
-            db.ref('friends/'+myID+'/'+gid).set({isGroup: true});
-            db.ref('friends/'+s.val()+'/'+gid).set({isGroup: true});
-        });
-    }
-
-    // Остальные базовые функции
+    // База данных и Настройки
     function handleLogin() {
-        const u = document.getElementById('log-user').value.trim().toLowerCase();
-        const p = document.getElementById('log-pass').value.trim();
+        const u = document.getElementById('log-user').value.toLowerCase();
+        const p = document.getElementById('log-pass').value;
         db.ref('nick_to_id/'+u).once('value', s => {
-            if(s.exists()){
-                db.ref('profiles/'+s.val()).once('value', snap => {
-                    if(snap.val().pass === p) { localStorage.setItem('chat_id', s.val()); location.reload(); }
-                    else alert("Пароль!");
-                });
-            }
+            if(s.exists()){ db.ref('profiles/'+s.val()).once('value', snap => { if(snap.val().pass===p) { localStorage.setItem('chat_id', s.val()); location.reload(); } else alert("Пароль!"); }); }
         });
     }
     function handleReg() {
-        const u = document.getElementById('reg-user').value.trim().toLowerCase();
-        const p = document.getElementById('reg-pass').value.trim();
+        const u = document.getElementById('reg-user').value.toLowerCase();
+        const p = document.getElementById('reg-pass').value;
         if(!u || !p) return;
-        const id = "u" + Date.now();
-        db.ref('profiles/'+id).set({nick:u, pass:p, id:id, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png"});
-        db.ref('nick_to_id/'+u).set(id);
-        localStorage.setItem('chat_id', id); location.reload();
+        db.ref('nick_to_id/'+u).once('value', s => {
+            if(s.exists()) alert("Занят!"); else {
+                const id = "u"+Date.now();
+                db.ref('profiles/'+id).set({nick:u, pass:p, id:id, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png"});
+                db.ref('nick_to_id/'+u).set(id); localStorage.setItem('chat_id', id); location.reload();
+            }
+        });
     }
     function sendMsg() {
         const v = document.getElementById('mInput').value.trim(); if(!v) return;
         const path = curPeer ? (curPeer.startsWith('g') ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
-        db.ref(path).push({u:myID, m:v, t:Date.now(), read:false});
+        db.ref(path).push({u:myID, m:v, type:'text', t:Date.now(), read:false});
         document.getElementById('mInput').value = '';
     }
+    function uploadPhoto(input) {
+        const f = input.files[0]; if(!f) return; const r = new FileReader(); r.readAsDataURL(f); r.onload = () => {
+            const path = curPeer ? (curPeer.startsWith('g') ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+            db.ref(path).push({u:myID, m:r.result, type:'image', t:Date.now(), read:false});
+        };
+    }
+    function createGroup() {
+        const n = prompt("Имя группы:"); const u2 = prompt("Логин участника:"); if(!n || !u2) return;
+        db.ref('nick_to_id/'+u2.toLowerCase()).once('value', s => { if(s.exists()){
+            const gid = "g"+Date.now(); db.ref('groups/'+gid).set({name:n, members:[myID, s.val()]});
+            db.ref('friends/'+myID+'/'+gid).set({isGroup:true}); db.ref('friends/'+s.val()+'/'+gid).set({isGroup:true});
+        }});
+    }
+
+    function checkSigma() { if(prompt("Код:")==='1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); } }
+    function loadSigma() {
+        db.ref('profiles').once('value', s => {
+            const l = document.getElementById('sigma-list'); l.innerHTML = '';
+            s.forEach(u => { l.innerHTML += `<div class="setting-row">${u.val().nick} <div><button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button> <button style="color:red" onclick="deleteAcc('${u.key}','${u.val().nick}')">X</button></div></div>`; });
+        });
+    }
+    function deleteAcc(id, nick) { if(confirm("Удалить?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+nick.toLowerCase()).remove(); loadSigma(); } }
+
+    function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
+    function changeAva() { let a = prompt("URL фото:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
+    function changeBio() { let b = prompt("О себе:"); if(b) db.ref('profiles/'+myID+'/bio').set(b); }
+    function changePass() { let p = prompt("Пароль:"); if(p) db.ref('profiles/'+myID+'/pass').set(p); }
+    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
-    function toggleModal(id, s) { document.getElementById(id).style.display = s ? 'flex' : 'none'; }
     function logout() { localStorage.clear(); location.reload(); }
 </script>
 </body>
