@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Ultimate</title>
+    <title>Spark Pro</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -23,7 +23,6 @@
         .auth-box input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #242f3d; color: white; outline: none; }
         .auth-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; background: var(--blue); color: white; font-weight: bold; cursor: pointer; }
 
-        /* Chat UI */
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
@@ -50,7 +49,6 @@
         .btn-voice { background: var(--blue); border-radius: 50%; color: white; font-size: 20px; }
         .recording { background: #ff595a !important; animation: pulse 1s infinite; }
 
-        /* Modals */
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
@@ -68,14 +66,14 @@
         <input type="text" id="log-user" placeholder="Логин">
         <input type="password" id="log-pass" placeholder="Пароль">
         <button onclick="handleLogin()">Войти</button>
-        <p onclick="toggleAuth(false)" style="color:var(--blue); cursor:pointer; margin-top:15px">Нет аккаунта? Регистрация</p>
+        <p onclick="toggleAuth(false)" style="color:var(--blue); cursor:pointer; margin-top:15px">Регистрация</p>
     </div>
     <div class="auth-box" id="reg-form" style="display: none;">
         <h2>Регистрация</h2>
-        <input type="text" id="reg-user" placeholder="Придумайте логин">
-        <input type="password" id="reg-pass" placeholder="Придумайте пароль">
-        <button onclick="handleReg()">Создать аккаунт</button>
-        <p onclick="toggleAuth(true)" style="color:var(--blue); cursor:pointer; margin-top:15px">Уже есть аккаунт? Войти</p>
+        <input type="text" id="reg-user" placeholder="Логин">
+        <input type="password" id="reg-pass" placeholder="Пароль">
+        <button onclick="handleReg()">Создать</button>
+        <p onclick="toggleAuth(true)" style="color:var(--blue); cursor:pointer; margin-top:15px">Уже есть аккаунт</p>
     </div>
 </div>
 
@@ -111,7 +109,7 @@
 <div id="settings-modal" class="modal">
     <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
     <div class="setting-row" onclick="changeNick()">👤 Ник <span id="st-nick"></span></div>
-    <div class="setting-row" onclick="changeAva()">🖼️ Сменить аватарку (URL)</div>
+    <div class="setting-row" onclick="changeAva()">🖼️ Аватарка (URL)</div>
     <div class="setting-row" onclick="changeBio()">📝 О себе</div>
     <div class="setting-row" onclick="changePass()">🔑 Сменить пароль</div>
     <div class="setting-row" style="background:gold; color:black;" onclick="checkSigma()">⚡ СИГМА ПАНЕЛЬ</div>
@@ -120,7 +118,7 @@
 
 <div id="profile-modal" class="modal">
     <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
-    <div id="profile-content" style="padding:40px; text-align:center"></div>
+    <div id="profile-content" style="padding:40px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:15px;"></div>
 </div>
 
 <div id="sigma-modal" class="modal">
@@ -135,7 +133,6 @@
 
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
-    let myNick = "";
     let isRecording = false;
     let mediaRecorder;
     let audioChunks = [];
@@ -158,7 +155,7 @@
             if(s.exists()) alert("Логин занят!");
             else {
                 const id = "u" + Date.now();
-                db.ref('profiles/'+id).set({nick:u, pass:p, id:id, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", bio:"Я в Spark!"});
+                db.ref('profiles/'+id).set({nick:u, pass:p, id:id, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", bio:"Привет!"});
                 db.ref('nick_to_id/'+u).set(id);
                 localStorage.setItem('chat_id', id); location.reload();
             }
@@ -173,16 +170,16 @@
                 const id = s.val();
                 db.ref('profiles/'+id).once('value', snap => {
                     if(snap.val().pass === p) { localStorage.setItem('chat_id', id); location.reload(); }
-                    else alert("Неверный пароль!");
+                    else alert("Пароль!");
                 });
-            } else alert("Нет такого логина!");
+            } else alert("Нет логина!");
         });
     }
 
     function startApp() {
         db.ref('status/'+myID).set({state:'online'});
         db.ref('status/'+myID).onDisconnect().set({state:'offline'});
-        db.ref('profiles/'+myID).on('value', s => { if(s.val()) { myNick = s.val().nick; document.getElementById('st-nick').innerText = myNick; }});
+        db.ref('profiles/'+myID).on('value', s => { if(s.val()) document.getElementById('st-nick').innerText = s.val().nick; });
 
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
@@ -201,7 +198,6 @@
         document.getElementById('chatMain').classList.add('active');
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         
-        // Online / Subtitle
         if(!curPeer) {
             db.ref('status').on('value', s => { let c=0; s.forEach(u=>{if(u.val().state==='online')c++}); document.getElementById('chatSubtitle').innerText = c+" онлайн"; });
         } else {
@@ -215,13 +211,13 @@
             const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
             let content = m.m;
             if(m.type === 'voice') content = `<audio src="${m.m}" controls style="width:180px"></audio>`;
-            if(m.type === 'image') content = `<img src="${m.m}" style="max-width:200px; border-radius:10px">`;
+            if(m.type === 'image') content = `<img src="${m.m}" style="max-width:200px; border-radius:10px; display:block;">`;
 
             row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')">
                 <div style="display:flex; flex-direction:column">
                     <span style="font-size:10px; color:var(--blue)" class="n-${m.u}"></span>
-                    <div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).substring(0,20)}', '${m.u}')">
-                        ${m.f_name ? `<small>от ${m.f_name}</small><br>` : ''}${content}
+                    <div class="bubble" onclick="msgAction('${snap.key}', '${m.u}')">
+                        ${content}
                         ${isMy ? `<span class="status-tick" id="t-${snap.key}">${m.read ? '✔✔' : '✔'}</span>` : ''}
                     </div>
                 </div>`;
@@ -233,14 +229,33 @@
                 document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=p.val().nick);
             }});
         });
+    }
 
-        db.ref(path).on('child_changed', snap => {
-            const t = document.getElementById('t-'+snap.key);
-            if(t) t.innerText = snap.val().read ? '✔✔' : '✔';
+    // ПРОФИЛЬ С АВАТАРКОЙ
+    function showProfile(uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            const p = s.val();
+            document.getElementById('profile-content').innerHTML = `
+                <img src="${p.ava}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid var(--blue)">
+                <h2 style="color:white;">${p.nick}</h2>
+                <p style="color:gray; font-size:14px;">${p.bio || "Нет описания"}</p>
+                <button onclick="addFriend('${p.id}')" style="padding:10px 30px; border-radius:10px; border:none; background:var(--blue); color:white; font-weight:bold; cursor:pointer; margin-top:10px;">Написать</button>`;
+            toggleModal('profile-modal', true);
         });
     }
 
-    // ГОЛОСОВЫЕ
+    // ЗАГРУЗКА ФОТО (МГНОВЕННО)
+    function uploadPhoto(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = () => {
+            const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+            db.ref(path).push({u:myID, m:r.result, type:'image', t:Date.now(), read:false});
+        };
+    }
+
     async function toggleVoice() {
         if(!isRecording){
             try {
@@ -250,44 +265,27 @@
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(audioChunks, {type:'audio/webm'});
                     const r = new FileReader(); r.readAsDataURL(blob);
-                    r.onloadend = () => sendToDB(r.result, 'voice');
+                    r.onloadend = () => {
+                        const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+                        db.ref(path).push({u:myID, m:r.result, type:'voice', t:Date.now(), read:false});
+                    };
                 };
                 mediaRecorder.start(); isRecording = true; document.getElementById('voiceBtn').classList.add('recording');
-            } catch(e) { alert("Нет доступа к микрофону"); }
+            } catch(e) { alert("Микрофон!"); }
         } else { mediaRecorder.stop(); isRecording = false; document.getElementById('voiceBtn').classList.remove('recording'); }
-    }
-
-    // ФОТО С УСТРОЙСТВА
-    function uploadPhoto(input) {
-        const file = input.files[0];
-        if(!file) return;
-        const r = new FileReader();
-        r.readAsDataURL(file);
-        r.onload = () => sendToDB(r.result, 'image');
-    }
-
-    function sendToDB(data, type) {
-        const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-        db.ref(path).push({u:myID, m:data, type:type, t:Date.now(), read:false});
     }
 
     function sendMsg() {
         const v = document.getElementById('mInput').value.trim(); if(!v) return;
-        sendToDB(v, 'text'); document.getElementById('mInput').value = '';
+        const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
+        db.ref(path).push({u:myID, m:v, type:'text', t:Date.now(), read:false});
+        document.getElementById('mInput').value = '';
     }
 
-    function msgAction(id, txt, uid) {
+    function msgAction(id, uid) {
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         if(uid === myID) { if(confirm("Удалить?")) db.ref(path+'/'+id).remove(); }
-        else { if(confirm("Переслать?")) { let tid = prompt("ID (цифры) кому переслать:"); if(tid) db.ref('privates/'+[myID,tid].sort().join('_')).push({u:myID, m:txt, f_name:myNick, read:false}); }}
-    }
-
-    function showProfile(uid) {
-        db.ref('profiles/'+uid).once('value', s => {
-            const p = s.val();
-            document.getElementById('profile-content').innerHTML = `<img src="${p.ava}" style="width:80px;border-radius:50%"><br><h2>${p.nick}</h2><p>${p.bio}</p><br><button onclick="addFriend('${p.id}')">Написать</button>`;
-            toggleModal('profile-modal', true);
-        });
+        else { if(confirm("Переслать?")) { let tid = prompt("Кому (ID):"); if(tid) db.ref('privates/'+[myID,tid].sort().join('_')).push({u:myID, m:"Переслано", read:false}); }}
     }
 
     function addFriend(id) { db.ref('friends/'+myID+'/'+id).set(true); db.ref('friends/'+id+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(id); }
@@ -295,18 +293,17 @@
     function loadSigma() {
         db.ref('profiles').once('value', s => {
             const l = document.getElementById('sigma-list'); l.innerHTML = '';
-            s.forEach(u => { l.innerHTML += `<div class="setting-row">${u.val().nick} <div><button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button> <button style="background:red; color:white; border:none; padding:5px; border-radius:5px" onclick="deleteAcc('${u.key}','${u.val().nick}')">Удалить</button></div></div>`; });
+            s.forEach(u => { l.innerHTML += `<div class="setting-row">${u.val().nick} <div><button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button> <button style="color:red" onclick="deleteAcc('${u.key}','${u.val().nick}')">X</button></div></div>`; });
         });
     }
-    function deleteAcc(id, nick) { if(confirm("Удалить "+nick+"?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+nick).remove(); loadSigma(); } }
+    function deleteAcc(id, nick) { if(confirm("Удалить?")) { db.ref('profiles/'+id).remove(); db.ref('nick_to_id/'+nick).remove(); loadSigma(); } }
     function logout() { localStorage.clear(); location.reload(); }
     function toggleModal(id, s) { document.getElementById(id).style.display = s ? 'flex' : 'none'; }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
     function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
     function changeAva() { let a = prompt("URL:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
     function changeBio() { let b = prompt("О себе:"); if(b) db.ref('profiles/'+myID+'/bio').set(b); }
-    function changePass() { let p = prompt("Новый пароль:"); if(p) db.ref('profiles/'+myID+'/pass').set(p); }
+    function changePass() { let p = prompt("Пароль:"); if(p) db.ref('profiles/'+myID+'/pass').set(p); }
 </script>
 </body>
-        </html>
-    
+</html>
