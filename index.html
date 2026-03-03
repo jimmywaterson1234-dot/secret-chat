@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Live Edition</title>
+    <title>Spark Secure</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -17,8 +17,14 @@
         #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.3; z-index: 1; pointer-events: none; }
         #app { position: relative; display: flex; height: 100dvh; width: 100vw; flex-direction: column; z-index: 5; }
 
+        /* Auth Styles */
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .auth-box { background: var(--panel); padding: 25px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .auth-box input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #242f3d; color: white; outline: none; }
+        .auth-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; background: var(--blue); color: white; font-weight: bold; cursor: pointer; }
+        .auth-link { color: var(--blue); margin-top: 15px; font-size: 14px; cursor: pointer; display: block; }
+
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
-        
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
         
@@ -29,35 +35,49 @@
         #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: pre-wrap; max-width: 100%; position: relative; }
+        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; position: relative; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
         .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
         
         .ava-msg { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--accent); flex-shrink: 0; cursor: pointer; }
         .status-tick { font-size: 11px; margin-left: 6px; color: var(--blue); }
-        #chatSubtitle { font-size: 11px; color: var(--blue); display: block; font-weight: normal; }
+        #chatSubtitle { font-size: 11px; color: var(--blue); }
 
-        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #000; position: relative; z-index: 300; }
-        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; font-size: 16px; outline: none; resize: none; max-height: 120px; min-height: 40px; font-family: inherit; line-height: 1.4; }
+        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #000; }
+        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; outline: none; resize: none; max-height: 120px; min-height: 40px; }
 
-        .btn-action { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: none; background: none; color: var(--blue); }
-        .btn-voice { background: var(--blue); border-radius: 50%; color: white; font-size: 20px; }
-        .recording { background: #ff595a !important; animation: pulse 1s infinite; }
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
         .setting-row { padding: 18px 20px; border-bottom: 1px solid #1c2835; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .btn-del { background: #ff595a; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="wall-layer"></div>
 
+<div id="auth-screen" style="display: none;">
+    <div class="auth-box" id="login-form">
+        <h2>Вход в Spark</h2>
+        <input type="text" id="log-user" placeholder="Логин">
+        <input type="password" id="log-pass" placeholder="Пароль">
+        <button onclick="handleLogin()">Войти</button>
+        <span class="auth-link" onclick="toggleAuth(false)">Нет аккаунта? Регистрация</span>
+    </div>
+    <div class="auth-box" id="reg-form" style="display: none;">
+        <h2>Регистрация</h2>
+        <input type="text" id="reg-user" placeholder="Придумайте логин">
+        <input type="password" id="reg-pass" placeholder="Придумайте пароль">
+        <button onclick="handleReg()">Создать аккаунт</button>
+        <span class="auth-link" onclick="toggleAuth(true)">Уже есть аккаунт? Войти</span>
+    </div>
+</div>
+
 <div id="app">
     <div id="sidePanel">
         <div class="header"><b>Spark</b> <span onclick="toggleModal('settings-modal', true)" style="font-size:24px; cursor:pointer">⚙️</span></div>
         <div id="chat-list" style="flex:1; overflow-y:auto">
-            <div class="chat-item" id="item-global" onclick="handleChatClick('global')">
+            <div class="chat-item" id="item-global" onclick="openChat(null)">
                 <div class="ava-msg" style="display:flex; align-items:center; justify-content:center; background:var(--blue)">🌐</div>
                 <b>Общий чат</b>
             </div>
@@ -67,37 +87,30 @@
     <div id="chatMain">
         <div class="header">
             <div style="display:flex; align-items:center; gap:12px">
-                <span onclick="goBack()" style="font-size:35px; color:var(--blue); cursor:pointer; padding: 0 10px;">‹</span>
-                <div><b id="chatTitle">Чат</b><span id="chatSubtitle">...</span></div>
+                <span onclick="goBack()" style="font-size:35px; color:var(--blue); cursor:pointer;">‹</span>
+                <div><b id="chatTitle">Чат</b><br><span id="chatSubtitle">...</span></div>
             </div>
         </div>
         <div id="msgs-container"></div>
         <div class="input-area">
-            <button class="btn-action" onclick="sendMedia()">🖼️</button>
             <textarea id="mInput" placeholder="Сообщение..." rows="1"></textarea>
-            <button id="voiceBtn" class="btn-action btn-voice" onclick="toggleVoice()">🎙️</button>
-            <button onclick="sendMsg()" class="btn-action" style="font-size:28px">➤</button>
+            <button onclick="sendMsg()" class="btn-action" style="background:none; border:none; color:var(--blue); font-size:28px;">➤</button>
         </div>
     </div>
 </div>
 
 <div id="settings-modal" class="modal">
     <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
-    <div class="setting-row" onclick="changeNick()">👤 Ник <span id="st-nick"></span></div>
-    <div class="setting-row" onclick="changeAva()">🖼️ Сменить аватарку</div>
+    <div class="setting-row" onclick="changeNick()">👤 Изменить ник <span id="st-nick"></span></div>
+    <div class="setting-row" onclick="changePass()">🔑 Сменить пароль</div>
+    <div class="setting-row" onclick="changeAva()">🖼️ Аватарка</div>
     <div class="setting-row" onclick="changeBio()">📝 О себе</div>
-    <div class="setting-row" onclick="changeWall()">🌌 Обои</div>
     <div class="setting-row" style="background:gold; color:black;" onclick="checkSigma()">⚡ СИГМА ПАНЕЛЬ</div>
-    <div class="setting-row" onclick="localStorage.clear(); location.reload();" style="color:red">🚪 Выйти</div>
-</div>
-
-<div id="profile-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
-    <div id="profile-content" style="padding:40px; text-align:center"></div>
+    <div class="setting-row" onclick="logout()" style="color:red">🚪 Выйти</div>
 </div>
 
 <div id="sigma-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA</b></div>
+    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA CONTROL</b></div>
     <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
 </div>
 
@@ -108,28 +121,76 @@
 
     let myID = localStorage.getItem('chat_id');
     let curPeer = null;
-    let myNick = "";
-    let isRecording = false;
-    let mediaRecorder;
-    let audioChunks = [];
 
     window.onload = () => {
-        if(localStorage.getItem('spark_wall')) document.getElementById('wall-layer').style.backgroundImage = `url(${localStorage.getItem('spark_wall')})`;
-        if(myID) startApp(); else auth();
+        if (!myID) {
+            document.getElementById('auth-screen').style.display = 'flex';
+        } else {
+            startApp();
+        }
     };
 
-    function startApp() {
-        const statusRef = db.ref('status/' + myID);
-        statusRef.set({ state: 'online' });
-        statusRef.onDisconnect().set({ state: 'offline' });
+    function toggleAuth(showLogin) {
+        document.getElementById('login-form').style.display = showLogin ? 'block' : 'none';
+        document.getElementById('reg-form').style.display = showLogin ? 'none' : 'block';
+    }
 
-        db.ref('profiles/'+myID).on('value', s => { 
-            if(s.val()){ 
-                myNick = s.val().nick; 
-                document.getElementById('st-nick').innerText = myNick; 
-            } 
+    // РЕГИСТРАЦИЯ
+    function handleReg() {
+        const user = document.getElementById('reg-user').value.trim().toLowerCase();
+        const pass = document.getElementById('reg-pass').value.trim();
+        if(!user || !pass) return alert("Заполните все поля");
+
+        db.ref('nick_to_id/' + user).once('value', s => {
+            if (s.exists()) {
+                alert("Этот логин уже занят!");
+            } else {
+                const id = "u" + Date.now();
+                db.ref('profiles/' + id).set({
+                    nick: user,
+                    pass: pass,
+                    id: id,
+                    ava: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                    bio: "Новичок в Spark"
+                });
+                db.ref('nick_to_id/' + user).set(id);
+                localStorage.setItem('chat_id', id);
+                location.reload();
+            }
+        });
+    }
+
+    // ВХОД
+    function handleLogin() {
+        const user = document.getElementById('log-user').value.trim().toLowerCase();
+        const pass = document.getElementById('log-pass').value.trim();
+
+        db.ref('nick_to_id/' + user).once('value', s => {
+            if (s.exists()) {
+                const id = s.val();
+                db.ref('profiles/' + id).once('value', p => {
+                    if (p.val().pass === pass) {
+                        localStorage.setItem('chat_id', id);
+                        location.reload();
+                    } else {
+                        alert("Неверный пароль!");
+                    }
+                });
+            } else {
+                alert("Пользователь не найден!");
+            }
+        });
+    }
+
+    function startApp() {
+        db.ref('status/' + myID).set({ state: 'online' });
+        db.ref('status/' + myID).onDisconnect().set({ state: 'offline' });
+
+        db.ref('profiles/' + myID).on('value', s => {
+            if(s.val()) document.getElementById('st-nick').innerText = s.val().nick;
         });
 
+        // Загрузка списка друзей/чатов
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
             const global = document.getElementById('item-global');
@@ -148,125 +209,85 @@
     }
 
     function openChat(id) {
-        curPeer = id === 'global' ? null : id;
+        curPeer = id;
         document.getElementById('sidePanel').classList.add('hidden');
         document.getElementById('chatMain').classList.add('active');
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-        const subtitle = document.getElementById('chatSubtitle');
         
-        db.ref('status').off();
-        if(curPeer) db.ref('status/'+curPeer).off();
-
+        // Система онлайн
         if(!curPeer) {
             db.ref('status').on('value', s => {
-                let count = 0; s.forEach(u => { if(u.val().state === 'online') count++; });
-                subtitle.innerText = count + " на сайте";
+                let c = 0; s.forEach(u => { if(u.val().state === 'online') c++; });
+                document.getElementById('chatSubtitle').innerText = c + " онлайн";
             });
         } else {
-            db.ref('status/' + curPeer).on('value', s => {
-                subtitle.innerText = (s.val()?.state === 'online' ? 'в сети' : 'офлайн');
+            db.ref('status/'+curPeer).on('value', s => {
+                document.getElementById('chatSubtitle').innerText = s.val()?.state === 'online' ? 'в сети' : 'офлайн';
             });
         }
 
-        db.ref(path).once('value', s => {
-            s.forEach(m => { if(m.val().u !== myID && !m.val().read) db.ref(path+'/'+m.key).update({read:true}); });
-        });
-
         const cont = document.getElementById('msgs-container');
-        cont.innerHTML = ''; db.ref(path).off('child_added');
+        cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
             const m = snap.val(); const isMy = m.u === myID;
             const row = document.createElement('div'); row.className = `msg-row ${isMy ? 'my' : 'other'}`;
-            let txt = m.m;
-            if(m.type === 'voice') txt = `<audio controls src="${m.m}" style="width:180px"></audio>`;
-            else if(String(m.m).startsWith('http')) txt = `<img src="${m.m}" style="max-width:200px; border-radius:12px">`;
-            
-            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')">
-                <div style="display:flex; flex-direction:column">
-                    <span style="font-size:12px; color:var(--blue); font-weight:bold" class="n-${m.u}"></span>
-                    <div class="bubble" onclick="msgAction('${snap.key}', '${String(m.m).replace(/'/g,"")}', '${m.u}')">
-                        ${m.f_name ? `<small>От ${m.f_name}</small><br>` : ''}${txt}
-                        ${isMy ? `<span class="status-tick" id="t-${snap.key}">${m.read ? '✔✔' : '✔'}</span>` : ''}
-                    </div>
-                </div>`;
+            row.innerHTML = `<div class="bubble">${m.m}${isMy ? `<span class="status-tick">${m.read ? '✔✔' : '✔'}</span>`:''}</div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ 
-                document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); 
-                document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); 
-            }});
+            if(!isMy && !m.read) db.ref(path+'/'+snap.key).update({read:true});
         });
     }
 
-    function showProfile(uid) {
-        db.ref('profiles/'+uid).once('value', s => {
-            const p = s.val();
-            document.getElementById('profile-content').innerHTML = `
-                <img src="${p.ava}" style="width:100px; height:100px; border-radius:50%; object-fit:cover;">
-                <h2 style="margin-top:10px">${p.nick}</h2>
-                <p style="color:gray; margin-bottom:20px">${p.bio || "Описание отсутствует"}</p>
-                <button onclick="addFriend('${p.id}')" style="padding:10px 20px; border-radius:10px; border:none; background:var(--blue); color:white;">Написать</button>`;
-            toggleModal('profile-modal', true);
+    function checkSigma() {
+        if(prompt("Код Sigma:") === '1234567891011121314151617181920') {
+            toggleModal('settings-modal', false);
+            toggleModal('sigma-modal', true);
+            loadSigma();
+        }
+    }
+
+    function loadSigma() {
+        const list = document.getElementById('sigma-list');
+        list.innerHTML = '';
+        db.ref('profiles').once('value', s => {
+            s.forEach(u => {
+                const p = u.val();
+                const d = document.createElement('div');
+                d.className = 'setting-row';
+                d.innerHTML = `<span>${p.nick}</span> 
+                <div>
+                    <button onclick="loginAs('${u.key}')">Вход</button>
+                    <button class="btn-del" onclick="deleteUser('${u.key}', '${p.nick}')">Удалить</button>
+                </div>`;
+                list.appendChild(d);
+            });
         });
     }
 
-    function changeAva() { let a = prompt("URL новой аватарки:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
-    function changeBio() { let b = prompt("О себе:"); if(b) db.ref('profiles/'+myID+'/bio').set(b); }
-    function changeNick() { let n = prompt("Новый ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
-    function changeWall() { let w = prompt("URL обоев:"); if(w) { localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
-
-    async function toggleVoice() {
-        if (!isRecording) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream); audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const reader = new FileReader(); reader.readAsDataURL(blob);
-                    reader.onloadend = () => {
-                        const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
-                        db.ref(p).push({ u: myID, m: reader.result, type: 'voice', t: Date.now(), read: false });
-                    };
-                };
-                mediaRecorder.start(); isRecording = true; document.getElementById('voiceBtn').classList.add('recording');
-            } catch (e) { alert("Ошибка доступа"); }
-        } else { mediaRecorder.stop(); isRecording = false; document.getElementById('voiceBtn').classList.remove('recording'); }
+    function deleteUser(id, nick) {
+        if(confirm("Удалить пользователя " + nick + " навсегда?")) {
+            db.ref('profiles/' + id).remove();
+            db.ref('nick_to_id/' + nick.toLowerCase()).remove();
+            db.ref('friends/' + id).remove();
+            loadSigma();
+        }
     }
 
+    function loginAs(id) { localStorage.setItem('chat_id', id); location.reload(); }
+    function changePass() { let p = prompt("Новый пароль:"); if(p) db.ref('profiles/'+myID+'/pass').set(p); }
+    function logout() { localStorage.clear(); location.reload(); }
+    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
+    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
     function sendMsg() {
         const v = document.getElementById('mInput').value.trim(); if(!v) return;
         const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         db.ref(p).push({ u: myID, m: v, t: Date.now(), read: false });
         document.getElementById('mInput').value = '';
     }
-
-    function msgAction(id, txt, uid) {
-        if(uid === myID) { if(confirm("Удалить?")) db.ref((curPeer?'privates/'+[myID,curPeer].sort().join('_'):'messages')+'/'+id).remove(); }
-        else { if(confirm("Переслать?")) { let tid = prompt("ID (цифры) получателя:"); if(tid) db.ref('privates/'+[myID,tid].sort().join('_')).push({u:myID, m:txt, f_name:myNick, read:false}); } }
-    }
-
-    function addFriend(id) { db.ref('friends/'+myID+'/'+id).set(true); db.ref('friends/'+id+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(id); }
-    function handleChatClick(id) { if(id==='global') openChat(null); else openChat(id); }
-    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
-    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
-    function checkSigma() { if(prompt("Код:")==='1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); } }
-    function loadSigma() {
-        db.ref('profiles').once('value', s => {
-            const list = document.getElementById('sigma-list'); list.innerHTML = '';
-            s.forEach(u => { list.innerHTML += `<div class="setting-row">${u.val().nick} <button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button></div>`; });
-        });
-    }
-
-    function auth() {
-        let n = prompt("Ник:"); if(!n) return auth();
-        db.ref('nick_to_id/'+n).once('value', s => {
-            let id = s.val() || Date.now().toString();
-            if(!s.val()) { db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id, bio: "Привет, я в Spark!"}); db.ref('nick_to_id/'+n).set(id); }
-            localStorage.setItem('chat_id', id); location.reload();
-        });
-    }
-    function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now(), read: false }); } }
+    // Функции смены аватарок, био и т.д. остаются как были
+    function changeNick() { let n = prompt("Новый ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
+    function changeAva() { let a = prompt("URL аватарки:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
+    function changeBio() { let b = prompt("О себе:"); if(b) db.ref('profiles/'+myID+'/bio').set(b); }
 </script>
 </body>
-    </html>
+                                                                                                                      </html>
     
