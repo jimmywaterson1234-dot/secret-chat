@@ -3,149 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Spark Final Fixed</title>
+    <title>Spark Ultra Stable</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --bg: #0e1621; --side: #17212b; --tg-blue: #50a2e3; --msg-in: #182533; --msg-out: #2b5278; --text: #fff; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; }
+        :root { --bg: #0e1621; --side: #17212b; --blue: #242f3d; --tg-blue: #50a2e3; --text: #fff; --my-msg: #2b5278; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body, html { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
 
-        /* ЭКРАН ВХОДА */
-        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: none; align-items: center; justify-content: center; text-align: center; }
-        .auth-card { width: 90%; max-width: 300px; }
-        .inp { width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: 1px solid #333; background: var(--side); color: #fff; font-size: 16px; }
+        /* Экраны */
+        .screen { position: fixed; inset: 0; display: none; flex-direction: column; background: var(--bg); z-index: 10; }
+        .screen.active { display: flex; }
 
-        /* ИНТЕРФЕЙС */
-        #app { display: flex; width: 100vw; height: 100vh; position: relative; }
-        #side { width: 320px; background: var(--side); border-right: 1px solid #000; display: flex; flex-direction: column; position: relative; z-index: 10; }
-        #main { flex: 1; display: flex; flex-direction: column; background: #0e1621; position: relative; z-index: 20; }
+        /* Заголовки */
+        .head { height: 60px; background: var(--side); display: flex; align-items: center; padding: 0 15px; gap: 15px; border-bottom: 1px solid #000; flex-shrink: 0; }
+        .back-btn { font-size: 24px; cursor: pointer; color: var(--tg-blue); padding-right: 10px; }
 
-        .header { height: 56px; background: var(--side); display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid #000; gap: 15px; flex-shrink: 0; }
-        .chat-list { flex: 1; overflow-y: auto; background: var(--side); }
-        .item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #0e1621; }
+        /* Списки */
+        .list { flex: 1; overflow-y: auto; }
+        .item { padding: 15px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #0e1621; }
         .item:active { background: #232e3c; }
-        .ava { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: var(--tg-blue); flex-shrink: 0; }
+        .ava { width: 50px; height: 50px; border-radius: 50%; background: var(--tg-blue); object-fit: cover; flex-shrink: 0; }
 
-        /* СООБЩЕНИЯ */
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0e1621; }
-        .msg-row { display: flex; gap: 10px; align-items: flex-end; max-width: 85%; }
-        .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 8px 12px; border-radius: 15px; background: var(--msg-in); position: relative; cursor: pointer; }
-        .my .bubble { background: var(--msg-out); border-bottom-right-radius: 2px; }
-        .msg-meta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 4px; font-size: 13px; }
+        /* Чат */
+        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .row { display: flex; gap: 8px; align-items: flex-end; max-width: 85%; }
+        .row.my { align-self: flex-end; flex-direction: row-reverse; }
+        .bubble { padding: 10px 15px; border-radius: 18px; background: #182533; position: relative; word-wrap: break-word; }
+        .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
+        
+        /* Ввод */
+        .input-bar { padding: 10px; background: var(--side); display: flex; align-items: center; gap: 10px; border-top: 1px solid #000; }
+        #mInp { flex: 1; background: transparent; border: none; color: #fff; font-size: 16px; outline: none; }
 
-        /* ВВОД */
-        .input-bar { padding: 10px; background: var(--side); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-        #mInp { flex: 1; background: transparent; border: none; color: #fff; font-size: 16px; }
+        /* Плюсик */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--tg-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 35px; color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; z-index: 100; }
 
-        /* ПЛЮСИК В ПРАВОМ НИЖНЕМ УГЛУ */
-        .fab { position: absolute; bottom: 20px; right: 20px; width: 56px; height: 56px; background: var(--tg-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; z-index: 100; color: white; }
-
-        /* МОДАЛКИ */
-        .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
-        .modal.active { display: flex; }
-        .back-btn { font-size: 24px; cursor: pointer; color: var(--tg-blue); padding: 10px; }
-
-        @media (max-width: 768px) {
-            #side { width: 100%; position: absolute; inset: 0; }
-            #main { width: 100%; position: absolute; inset: 0; display: none; }
-            #main.active { display: flex; }
-        }
+        /* Авторизация */
+        #auth-screen { z-index: 9999; justify-content: center; align-items: center; display: none; }
+        .auth-box { width: 85%; max-width: 320px; text-align: center; }
+        .inp { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #333; background: var(--side); color: #fff; }
+        
+        /* Сигма-панель */
+        .sigma-item { padding: 10px; border: 1px solid gold; margin: 5px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div id="auth-screen">
-    <div class="auth-card">
-        <h2 style="color:var(--tg-blue)">Вас приветствует Spark</h2>
-        <input type="text" id="auser" class="inp" placeholder="Ваш никнейм">
+<div id="auth-screen" class="screen">
+    <div class="auth-box">
+        <h2 style="margin-bottom:20px;">Вас приветствует Spark</h2>
+        <input type="text" id="auser" class="inp" placeholder="Никнейм">
         <input type="password" id="apass" class="inp" placeholder="Пароль">
-        <button class="inp" style="background:var(--tg-blue); border:none; font-weight:bold;" onclick="doAuth()">Войти / Регистрация</button>
+        <button class="inp" style="background:var(--tg-blue); border:none; font-weight:bold" onclick="doAuth()">ВОЙТИ / СОЗДАТЬ</button>
     </div>
 </div>
 
-<div id="app">
-    <div id="side">
-        <div class="header">
-            <span onclick="toggleMod('sets-mod', true)">☰</span>
-            <b>Spark</b>
-            <span onclick="searchID()" style="margin-left:auto">🔍</span>
-        </div>
-        <div class="chat-list" id="chat-list"></div>
-        <div class="fab" onclick="toggleMod('fab-mod', true)">+</div>
+<div id="main-screen" class="screen active">
+    <div class="head">
+        <span onclick="openMod('sets-mod')">☰</span>
+        <b style="font-size:20px">Spark</b>
+        <span style="margin-left:auto" onclick="searchID()">🔍</span>
     </div>
+    <div id="chat-list" class="list"></div>
+    <div class="fab" onclick="openMod('fab-mod')">+</div>
+</div>
 
-    <div id="main">
-        <div class="header">
-            <span class="back-btn" onclick="goBack()">←</span>
-            <div style="flex:1" onclick="viewPeer()">
-                <b id="cName">...</b><br><small id="cStat" style="color:var(--tg-blue)"></small>
-            </div>
-            <span id="g-menu-btn" onclick="openGroupMenu()" style="display:none; font-size:20px; cursor:pointer;">⋮</span>
+<div id="chat-window" class="screen">
+    <div class="head">
+        <span class="back-btn" onclick="closeChat()">←</span>
+        <div style="flex:1" onclick="viewPeer()">
+            <b id="chat-title">Загрузка...</b>
         </div>
-        <div id="msgs"></div>
-        <div class="input-bar">
-            <span onclick="document.getElementById('fInp').click()">📎</span>
-            <input type="file" id="fInp" hidden onchange="upImg(this)">
-            <input type="text" id="mInp" placeholder="Сообщение...">
-            <span id="vBtn" onclick="recV()">📷</span>
-            <span id="aBtn" onclick="recA()">🎙️</span>
-            <span onclick="send()" style="color:var(--tg-blue); font-size:24px; cursor:pointer;">➤</span>
-        </div>
+        <span id="g-dots" style="display:none" onclick="openMod('group-info-mod')">⋮</span>
+    </div>
+    <div id="msgs"></div>
+    <div class="input-bar">
+        <span onclick="document.getElementById('fInp').click()">📎</span>
+        <input type="file" id="fInp" hidden onchange="upImg(this)">
+        <input type="text" id="mInp" placeholder="Сообщение...">
+        <span id="aBtn" onclick="recA()">🎙️</span>
+        <span onclick="sendMsg()" style="color:var(--tg-blue); font-size:25px;">➤</span>
     </div>
 </div>
 
-<div id="sets-mod" class="modal">
-    <div class="header"><span class="back-btn" onclick="toggleMod('sets-mod', false)">←</span><b>Настройки</b></div>
-    <div id="my-info" style="padding:20px; text-align:center;"></div>
-    <div class="item" onclick="upd('bio')">📝 О себе</div>
-    <div class="item" style="color:gold" onclick="openSigma()">⚡ СИГМА ПАНЕЛЬ</div>
-    <div class="item" style="color:red" onclick="logout()">🚪 Выйти</div>
+<div id="sets-mod" class="screen">
+    <div class="head"><span class="back-btn" onclick="closeMod('sets-mod')">←</span><b>Настройки</b></div>
+    <div id="my-profile" style="padding:20px; text-align:center;"></div>
+    <div class="item" onclick="upd('bio')">О себе</div>
+    <div class="item" style="color:gold" onclick="openSigma()">СИГМА ПАНЕЛЬ</div>
+    <div class="item" style="color:red" onclick="logout()">Выйти из аккаунта</div>
 </div>
 
-<div id="fab-mod" class="modal">
-    <div class="header"><span class="back-btn" onclick="toggleMod('fab-mod', false)">←</span><b>Новое</b></div>
-    <div class="item" onclick="initGroupCreate()">👥 Создать группу</div>
+<div id="fab-mod" class="screen">
+    <div class="head"><span class="back-btn" onclick="closeMod('fab-mod')">←</span><b>Создать</b></div>
+    <div class="item" onclick="initGroup()">Создать группу</div>
 </div>
 
-<div id="fwd-mod" class="modal">
-    <div class="header"><span class="back-btn" onclick="toggleMod('fwd-mod', false)">←</span><b>Переслать</b></div>
-    <div id="fwd-list" class="chat-list"></div>
-    <button id="fwd-confirm" class="inp" style="background:var(--tg-blue); border-radius:0; display:none;" onclick="confirmFwd()">ПЕРЕСЛАТЬ</button>
+<div id="prof-mod" class="screen">
+    <div class="head"><span class="back-btn" onclick="closeMod('prof-mod')">←</span><b>Профиль</b></div>
+    <div id="peer-data" style="padding:30px; text-align:center;"></div>
 </div>
 
-<div id="prof-mod" class="modal">
-    <div class="header"><span class="back-btn" onclick="toggleMod('prof-mod', false)">←</span><b>Профиль</b></div>
-    <div id="prof-data" style="padding:30px; text-align:center;"></div>
+<div id="sigma-mod" class="screen">
+    <div class="head"><span class="back-btn" onclick="closeMod('sigma-mod')">←</span><b>Sigma Admin</b></div>
+    <div id="sig-list" class="list"></div>
 </div>
-
-<div id="sigma-mod" class="modal"><div class="header"><span class="back-btn" onclick="toggleMod('sigma-mod', false)">←</span><b>Sigma Admin</b></div><div id="sig-list"></div></div>
 
 <script>
-    const config = { databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" };
-    firebase.initializeApp(config);
+    // КОНФИГ (Версия v5 для чистоты)
+    const firebaseConfig = { databaseURL: "https://litegrum-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let myID = localStorage.getItem('spark_v5_uid'), curPeer = null, isG = false, myData = {};
-    let aRec, aChunks = [], isAR = false, fwdMsg = null, selectedForFwd = [];
+    let myUID = localStorage.getItem('spark_uid_v5'), curChat = null, isGroup = false, myData = {};
+    let aRec, aChunks = [], isRecording = false;
 
-    window.onload = () => { if(!myID) document.getElementById('auth-screen').style.display='flex'; else start(); };
+    window.onload = () => { if(!myUID) document.getElementById('auth-screen').style.display='flex'; else initApp(); };
 
-    function start() {
-        db.ref('profiles_v4/'+myID).on('value', s => {
+    function initApp() {
+        // Подгружаем свой профиль
+        db.ref('users_v5/'+myUID).on('value', s => {
             myData = s.val(); if(!myData) return;
-            document.getElementById('my-info').innerHTML = `<img src="${myData.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:80px;height:80px"><br><h3>${myData.nick}</h3><p>${myData.bio||'О себе не заполнено'}</p>`;
+            document.getElementById('my-profile').innerHTML = `
+                <img src="${myData.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:100px;height:100px">
+                <h2>${myData.nick}</h2><p>ID: ${myData.shortID}</p><p>${myData.bio||''}</p>
+            `;
         });
 
-        db.ref('friends_v4/'+myID).on('value', s => {
-            const list = document.getElementById('chat-list');
-            list.innerHTML = `<div class="item" onclick="openChat('global', false)"><div class="ava">🌐</div><div><b>Общий чат</b></div></div>`;
-            s.forEach(f => {
-                db.ref(f.val().isG ? 'groups_v4/'+f.key : 'profiles_v4/'+f.key).once('value', p => {
-                    const d = p.val();
-                    list.innerHTML += `<div class="item" onclick="openChat('${f.key}', ${f.val().isG})">
-                        <img src="${d.ava || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava">
+        // Список чатов
+        db.ref('chats_v5/'+myUID).on('value', s => {
+            const container = document.getElementById('chat-list');
+            container.innerHTML = `<div class="item" onclick="openChat('global', false)"><div class="ava">🌐</div><b>Общий чат</b></div>`;
+            s.forEach(child => {
+                const info = child.val();
+                db.ref(info.isG ? 'groups_v5/'+child.key : 'users_v5/'+child.key).once('value', snap => {
+                    const d = snap.val();
+                    if(!d) return;
+                    container.innerHTML += `<div class="item" onclick="openChat('${child.key}', ${info.isG})">
+                        <img src="${d.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava">
                         <div><b>${d.nick || d.name}</b></div>
                     </div>`;
                 });
@@ -154,130 +150,137 @@
     }
 
     function openChat(id, gMode) {
-        curPeer = id === 'global' ? null : id; isG = gMode;
-        document.getElementById('main').classList.add('active');
-        document.getElementById('main').style.display = 'flex';
+        curChat = id === 'global' ? null : id; isGroup = gMode;
+        document.getElementById('chat-window').classList.add('active');
+        document.getElementById('chat-title').innerText = id === 'global' ? 'Общий чат' : 'Загрузка...';
         
-        const path = curPeer ? (isG ? 'g_msg_v4/'+curPeer : 'priv_v4/'+[myID, curPeer].sort().join('_')) : 'msgs_v4';
-        document.getElementById('cName').innerText = id === 'global' ? 'Общий чат' : 'Чат';
+        const path = curChat ? (isGroup ? 'g_msgs_v5/'+curChat : 'p_msgs_v5/'+[myUID, curChat].sort().join('_')) : 'global_msgs_v5';
+        
+        if(curChat) db.ref(isGroup ? 'groups_v5/'+id : 'users_v5/'+id).once('value', s => {
+            document.getElementById('chat-title').innerText = s.val().nick || s.val().name;
+        });
 
-        const cont = document.getElementById('msgs'); cont.innerHTML = '';
+        const msgCont = document.getElementById('msgs'); msgCont.innerHTML = '';
         db.ref(path).off();
         db.ref(path).on('child_added', snap => {
             const m = snap.val();
-            const row = document.createElement('div'); row.id = 'm-'+snap.key;
-            row.className = 'msg-row ' + (m.u === myID ? 'my' : '');
+            const div = document.createElement('div');
+            div.className = 'row ' + (m.u === myUID ? 'my' : '');
             
-            let content = m.t === 'voice' ? `<audio src="${m.m}" controls style="width:180px;height:35px"></audio>` :
-                          m.t === 'img' ? `<img src="${m.m}" style="max-width:220px; border-radius:12px;">` : `<span>${m.m}</span>`;
-            
-            row.innerHTML = `
-                ${m.u !== myID ? `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="ava" style="width:32px;height:32px" onclick="viewUser('${m.u}')">` : ''}
-                <div class="bubble" onclick="msgMenu('${snap.key}','${m.u}','${m.m}','${m.t}','${m.n}')">
-                    <div class="msg-meta"><small style="color:var(--tg-blue)">${m.n}</small></div>
-                    ${m.f ? `<small style="color:#aaa;display:block">↪ Переслано от ${m.f}</small>` : ''}
-                    ${content}
+            let body = m.t === 'voice' ? `<audio src="${m.m}" controls style="width:200px; height:40px;"></audio>` :
+                       m.t === 'img' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px;">` : `<span>${m.m}</span>`;
+
+            div.innerHTML = `
+                ${m.u !== myUID ? `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="ava" style="width:30px;height:30px;" onclick="viewUser('${m.u}')">` : ''}
+                <div class="bubble" onclick="msgAction('${snap.key}', '${m.u}', '${m.m}', '${m.t}', '${m.n}')">
+                    <small style="color:var(--tg-blue); display:block; font-weight:bold; margin-bottom:3px;">${m.n}</small>
+                    ${m.f ? `<small style="color:#888; display:block;">↪ Переслано от ${m.f}</small>` : ''}
+                    ${body}
                 </div>`;
-            cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
+            msgCont.appendChild(div); msgCont.scrollTop = msgCont.scrollHeight;
         });
+        db.ref(path).on('child_removed', snap => { location.reload(); }); // Простое решение для удаления в реальном времени
     }
 
-    function msgMenu(mid, uid, m, t, n) {
-        const action = uid === myID ? confirm("Удалить (OK) или Переслать (Отмена)?") : confirm("Переслать сообщение?");
-        if(uid === myID && action) {
-            const path = curPeer ? (isG ? 'g_msg_v4/'+curPeer : 'priv_v4/'+[myID, curPeer].sort().join('_')) : 'msgs_v4';
-            db.ref(path+'/'+mid).remove();
-        } else {
-            fwdMsg = {m:m, t:t, n:n};
-            const list = document.getElementById('fwd-list'); list.innerHTML = '';
-            db.ref('friends_v4/'+myID).once('value', s => {
-                s.forEach(f => {
-                    list.innerHTML += `<div class="item"><span>Чат ${f.key}</span> <input type="checkbox" onchange="toggleFwd('${f.key}', this.checked)"></div>`;
-                });
-                toggleMod('fwd-mod', true);
-            });
-        }
+    function sendMsg() {
+        if(window.recordedBlob) { pushToDB(window.recordedBlob, 'voice'); window.recordedBlob = null; return; }
+        const text = document.getElementById('mInp').value.trim();
+        if(!text) return;
+        pushToDB(text, 'txt');
+        document.getElementById('mInp').value = '';
     }
 
-    function toggleFwd(id, s) { 
-        if(s) selectedForFwd.push(id); else selectedForFwd = selectedForFwd.filter(x=>x!==id);
-        document.getElementById('fwd-confirm').style.display = selectedForFwd.length ? 'block' : 'none';
+    function pushToDB(m, t, f=null) {
+        const path = curChat ? (isGroup ? 'g_msgs_v5/'+curChat : 'p_msgs_v5/'+[myUID, curChat].sort().join('_')) : 'global_msgs_v5';
+        db.ref(path).push({ u: myUID, n: myData.nick, m: m, t: t, f: f });
     }
 
-    function confirmFwd() {
-        selectedForFwd.forEach(id => {
-            const path = 'priv_v4/'+[myID, id].sort().join('_');
-            db.ref(path).push({u:myID, n:myData.nick, m:fwdMsg.m, t:fwdMsg.t, f:fwdMsg.n});
-        });
-        toggleMod('fwd-mod', false); alert("Переслано!");
-    }
-
-    // ГОЛОСОВЫЕ
     async function recA() {
-        if(!isAR) {
+        if(!isRecording) {
             const s = await navigator.mediaDevices.getUserMedia({audio:true});
             aRec = new MediaRecorder(s); aChunks = [];
             aRec.ondataavailable = e => aChunks.push(e.data);
-            aRec.start(); isAR = true; document.getElementById('aBtn').style.color = 'red';
+            aRec.start(); isRecording = true; document.getElementById('aBtn').style.color = 'red';
         } else {
-            aRec.stop(); isAR = false; document.getElementById('aBtn').style.color = '#fff';
+            aRec.stop(); isRecording = false; document.getElementById('aBtn').style.color = '#fff';
             aRec.onstop = () => {
                 const r = new FileReader(); r.readAsDataURL(new Blob(aChunks));
-                r.onload = () => { window.lastA = r.result; alert("Записано! Нажми ➤"); };
+                r.onload = () => { window.recordedBlob = r.result; alert("Голосовое записано! Нажми ➤"); };
             };
         }
     }
 
-    function send() {
-        if(window.lastA) { sendMed(window.lastA, 'voice'); window.lastA = null; return; }
-        const v = document.getElementById('mInp').value.trim();
-        if(!v) return; sendMed(v, 'txt'); document.getElementById('mInp').value = '';
-    }
-
-    function sendMed(m, t) {
-        const p = curPeer ? (isG ? 'g_msg_v4/'+curPeer : 'priv_v4/'+[myID, curPeer].sort().join('_')) : 'msgs_v4';
-        db.ref(p).push({u:myID, n:myData.nick, m:m, t:t});
+    function msgAction(id, uid, m, t, n) {
+        if(uid === myUID) {
+            if(confirm("Удалить сообщение для всех?")) {
+                const path = curChat ? (isGroup ? 'g_msgs_v5/'+curChat : 'p_msgs_v5/'+[myUID, curChat].sort().join('_')) : 'global_msgs_v5';
+                db.ref(path+'/'+id).remove();
+            }
+        } else {
+            if(confirm("Переслать это сообщение?")) {
+                const target = prompt("Введите ID того, кому переслать:");
+                if(target) {
+                    db.ref('p_msgs_v5/'+[myUID, target].sort().join('_')).push({u:myUID, n:myData.nick, m:m, t:t, f:n});
+                    alert("Переслано!");
+                }
+            }
+        }
     }
 
     function doAuth() {
         const u = document.getElementById('auser').value.toLowerCase().trim(), p = document.getElementById('apass').value;
         if(!u || !p) return;
-        db.ref('n_to_id_v4/'+u).once('value', s => {
-            const uid = s.exists() ? s.val() : 'u'+Date.now();
-            db.ref('profiles_v4/'+uid).once('value', sn => {
-                if(sn.exists() && sn.val().pass !== p) return alert("Неверный пароль");
-                if(!sn.exists()) db.ref('profiles_v4/'+uid).set({nick:u, pass:p, shortID:'id'+Math.floor(Math.random()*9000), bio:''});
-                db.ref('n_to_id_v4/'+u).set(uid);
-                localStorage.setItem('spark_v5_uid', uid); location.reload();
-            });
+        db.ref('u_to_id_v5/'+u).once('value', s => {
+            if(s.exists()) {
+                db.ref('users_v5/'+s.val()).once('value', sn => {
+                    if(sn.val().pass === p) { localStorage.setItem('spark_uid_v5', s.val()); location.reload(); }
+                    else alert("Пароль неверный!");
+                });
+            } else {
+                const uid = 'u'+Date.now();
+                const sid = 'id'+Math.floor(1000+Math.random()*8999);
+                db.ref('users_v5/'+uid).set({nick:u, pass:p, shortID:sid, bio:''});
+                db.ref('u_to_id_v5/'+u).set(uid);
+                db.ref('short_v5/'+sid).set(uid);
+                localStorage.setItem('spark_uid_v5', uid); location.reload();
+            }
         });
     }
 
     function viewUser(uid) {
-        db.ref('profiles_v4/'+uid).once('value', s => {
+        db.ref('users_v5/'+uid).once('value', s => {
             const p = s.val();
-            document.getElementById('prof-data').innerHTML = `<img src="${p.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:100px;height:100px"><h2>${p.nick}</h2><p>ID: ${p.shortID}</p><p>${p.bio||''}</p>`;
-            toggleMod('prof-mod', true);
+            document.getElementById('peer-data').innerHTML = `
+                <img src="${p.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:100px;height:100px">
+                <h2>${p.nick}</h2><p>ID: ${p.shortID}</p><p>${p.bio||''}</p>
+                <button class="inp" style="background:var(--tg-blue);border:none" onclick="addChat('${uid}')">Написать</button>
+            `;
+            openMod('prof-mod');
         });
     }
 
-    function goBack() { document.getElementById('main').style.display = 'none'; document.getElementById('main').classList.remove('active'); }
-    function toggleMod(id, s) { document.getElementById(id).style.display = s ? 'flex' : 'none'; }
+    function addChat(uid) { db.ref('chats_v5/'+myUID+'/'+uid).set({isG:false}); db.ref('chats_v5/'+uid+'/'+myUID).set({isG:false}); closeMod('prof-mod'); openChat(uid, false); }
+    function searchID() { const id = prompt("Введите ID:"); if(id) db.ref('short_v5/'+id).once('value', s => { if(s.exists()) addChat(s.val()); else alert("Не найден!"); }); }
+    function openMod(id) { document.getElementById(id).classList.add('active'); }
+    function closeMod(id) { document.getElementById(id).classList.remove('active'); }
+    function closeChat() { document.getElementById('chat-window').classList.remove('active'); }
     function logout() { localStorage.clear(); location.reload(); }
-    function searchID() { const id = prompt("ID:"); if(id) db.ref('short_v4/'+id).once('value', s => { if(s.exists()) { db.ref('friends_v4/'+myID+'/'+s.val()).set({isG:false}); location.reload(); } }); }
-    function upd(k) { const v = prompt("Новое значение:"); if(v) db.ref('profiles_v4/'+myID+'/'+k).set(v); }
-    function upImg(i) { const f = i.files[0]; if(f) { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => sendMed(r.result, 'img'); } }
-    
+    function upd(k) { const v = prompt("Новое значение:"); if(v) db.ref('users_v5/'+myUID+'/'+k).set(v); }
+    function upImg(i) { const f = i.files[0]; if(f) { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => pushToDB(r.result, 'img'); } }
+
     function openSigma() {
         if(prompt("Код:") === '1234567891011121314151617181920') {
             const l = document.getElementById('sig-list'); l.innerHTML = '';
-            db.ref('profiles_v4').once('value', s => {
-                s.forEach(u => { l.innerHTML += `<div class="item"><b>${u.val().nick}</b> <button onclick="localStorage.setItem('spark_v5_uid','${u.key}');location.reload()">Вход</button></div>`; });
-                toggleMod('sigma-mod', true);
+            db.ref('users_v5').once('value', s => {
+                s.forEach(u => {
+                    l.innerHTML += `<div class="sigma-item"><b>${u.val().nick}</b> 
+                    <button onclick="localStorage.setItem('spark_uid_v5','${u.key}');location.reload()">Вход</button>
+                    <button onclick="db.ref('users_v5/${u.key}').remove();location.reload()" style="color:red">Удалить</button></div>`;
+                });
+                openMod('sigma-mod');
             });
         }
     }
 </script>
 </body>
-    </html>
-    
+</html>
