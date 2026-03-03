@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Online Fix</title>
+    <title>Spark Live Edition</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -84,17 +84,21 @@
 <div id="settings-modal" class="modal">
     <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
     <div class="setting-row" onclick="changeNick()">👤 Ник <span id="st-nick"></span></div>
+    <div class="setting-row" onclick="changeAva()">🖼️ Сменить аватарку</div>
+    <div class="setting-row" onclick="changeBio()">📝 О себе</div>
     <div class="setting-row" onclick="changeWall()">🌌 Обои</div>
     <div class="setting-row" style="background:gold; color:black;" onclick="checkSigma()">⚡ СИГМА ПАНЕЛЬ</div>
     <div class="setting-row" onclick="localStorage.clear(); location.reload();" style="color:red">🚪 Выйти</div>
 </div>
-<div id="sigma-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA</b></div>
-    <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
-</div>
+
 <div id="profile-modal" class="modal">
     <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
     <div id="profile-content" style="padding:40px; text-align:center"></div>
+</div>
+
+<div id="sigma-modal" class="modal">
+    <div class="header"><span onclick="toggleModal('sigma-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b style="color:gold">SIGMA</b></div>
+    <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
 </div>
 
 <script>
@@ -115,12 +119,16 @@
     };
 
     function startApp() {
-        // Установка статуса Онлайн
         const statusRef = db.ref('status/' + myID);
         statusRef.set({ state: 'online' });
         statusRef.onDisconnect().set({ state: 'offline' });
 
-        db.ref('profiles/'+myID).on('value', s => { if(s.val()){ myNick = s.val().nick; document.getElementById('st-nick').innerText = myNick; } });
+        db.ref('profiles/'+myID).on('value', s => { 
+            if(s.val()){ 
+                myNick = s.val().nick; 
+                document.getElementById('st-nick').innerText = myNick; 
+            } 
+        });
 
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
@@ -146,30 +154,24 @@
         const path = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages';
         const subtitle = document.getElementById('chatSubtitle');
         
-        // Очистка предыдущих слушателей
         db.ref('status').off();
         if(curPeer) db.ref('status/'+curPeer).off();
 
-        // Логика подзаголовка (Онлайн)
         if(!curPeer) {
             db.ref('status').on('value', s => {
-                let count = 0;
-                s.forEach(u => { if(u.val().state === 'online') count++; });
+                let count = 0; s.forEach(u => { if(u.val().state === 'online') count++; });
                 subtitle.innerText = count + " на сайте";
             });
         } else {
             db.ref('status/' + curPeer).on('value', s => {
                 subtitle.innerText = (s.val()?.state === 'online' ? 'в сети' : 'офлайн');
-                subtitle.style.color = (s.val()?.state === 'online' ? '#4caf50' : '--blue');
             });
         }
 
-        // Система прочтения
         db.ref(path).once('value', s => {
             s.forEach(m => { if(m.val().u !== myID && !m.val().read) db.ref(path+'/'+m.key).update({read:true}); });
         });
 
-        // Загрузка сообщений
         const cont = document.getElementById('msgs-container');
         cont.innerHTML = ''; db.ref(path).off('child_added');
         db.ref(path).limitToLast(50).on('child_added', snap => {
@@ -188,17 +190,29 @@
                     </div>
                 </div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).once('value', s => { if(s.val()){ 
+            db.ref('profiles/'+m.u).on('value', s => { if(s.val()){ 
                 document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=s.val().ava); 
                 document.querySelectorAll('.n-'+m.u).forEach(n=>n.innerText=s.val().nick); 
             }});
         });
+    }
 
-        db.ref(path).on('child_changed', snap => {
-            const t = document.getElementById('t-'+snap.key);
-            if(t) t.innerText = snap.val().read ? '✔✔' : '✔';
+    function showProfile(uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            const p = s.val();
+            document.getElementById('profile-content').innerHTML = `
+                <img src="${p.ava}" style="width:100px; height:100px; border-radius:50%; object-fit:cover;">
+                <h2 style="margin-top:10px">${p.nick}</h2>
+                <p style="color:gray; margin-bottom:20px">${p.bio || "Описание отсутствует"}</p>
+                <button onclick="addFriend('${p.id}')" style="padding:10px 20px; border-radius:10px; border:none; background:var(--blue); color:white;">Написать</button>`;
+            toggleModal('profile-modal', true);
         });
     }
+
+    function changeAva() { let a = prompt("URL новой аватарки:"); if(a) db.ref('profiles/'+myID+'/ava').set(a); }
+    function changeBio() { let b = prompt("О себе:"); if(b) db.ref('profiles/'+myID+'/bio').set(b); }
+    function changeNick() { let n = prompt("Новый ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
+    function changeWall() { let w = prompt("URL обоев:"); if(w) { localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
 
     async function toggleVoice() {
         if (!isRecording) {
@@ -215,7 +229,7 @@
                     };
                 };
                 mediaRecorder.start(); isRecording = true; document.getElementById('voiceBtn').classList.add('recording');
-            } catch (e) { alert("Нет доступа к микрофону"); }
+            } catch (e) { alert("Ошибка доступа"); }
         } else { mediaRecorder.stop(); isRecording = false; document.getElementById('voiceBtn').classList.remove('recording'); }
     }
 
@@ -227,24 +241,14 @@
     }
 
     function msgAction(id, txt, uid) {
-        if(uid === myID) { if(confirm("Удалить сообщение?")) db.ref((curPeer?'privates/'+[myID,curPeer].sort().join('_'):'messages')+'/'+id).remove(); }
-        else { if(confirm("Переслать?")) { let tid = prompt("ID получателя:"); if(tid) db.ref('privates/'+[myID,tid].sort().join('_')).push({u:myID, m:txt, f_name:myNick, read:false}); } }
-    }
-
-    function showProfile(uid) {
-        db.ref('profiles/'+uid).once('value', s => {
-            const p = s.val();
-            document.getElementById('profile-content').innerHTML = `<img src="${p.ava}" style="width:80px;border-radius:50%"><h2>${p.nick}</h2><button onclick="addFriend('${p.id}')">Написать</button>`;
-            toggleModal('profile-modal', true);
-        });
+        if(uid === myID) { if(confirm("Удалить?")) db.ref((curPeer?'privates/'+[myID,curPeer].sort().join('_'):'messages')+'/'+id).remove(); }
+        else { if(confirm("Переслать?")) { let tid = prompt("ID (цифры) получателя:"); if(tid) db.ref('privates/'+[myID,tid].sort().join('_')).push({u:myID, m:txt, f_name:myNick, read:false}); } }
     }
 
     function addFriend(id) { db.ref('friends/'+myID+'/'+id).set(true); db.ref('friends/'+id+'/'+myID).set(true); toggleModal('profile-modal', false); openChat(id); }
     function handleChatClick(id) { if(id==='global') openChat(null); else openChat(id); }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
     function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
-    function changeNick() { let n = prompt("Ник:"); if(n) db.ref('profiles/'+myID+'/nick').set(n); }
-    function changeWall() { let w = prompt("URL обоев:"); if(w) { localStorage.setItem('spark_wall', w); document.getElementById('wall-layer').style.backgroundImage = `url(${w})`; } }
     function checkSigma() { if(prompt("Код:")==='1234567891011121314151617181920') { toggleModal('settings-modal', false); toggleModal('sigma-modal', true); loadSigma(); } }
     function loadSigma() {
         db.ref('profiles').once('value', s => {
@@ -252,14 +256,17 @@
             s.forEach(u => { list.innerHTML += `<div class="setting-row">${u.val().nick} <button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button></div>`; });
         });
     }
+
     function auth() {
         let n = prompt("Ник:"); if(!n) return auth();
         db.ref('nick_to_id/'+n).once('value', s => {
             let id = s.val() || Date.now().toString();
-            if(!s.val()) { db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id}); db.ref('nick_to_id/'+n).set(id); }
+            if(!s.val()) { db.ref('profiles/'+id).set({nick:n, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png", id:id, bio: "Привет, я в Spark!"}); db.ref('nick_to_id/'+n).set(id); }
             localStorage.setItem('chat_id', id); location.reload();
         });
     }
+    function sendMedia() { let u = prompt("URL картинки:"); if(u){ const p = curPeer ? 'privates/'+[myID, curPeer].sort().join('_') : 'messages'; db.ref(p).push({ u: myID, m: u, t: Date.now(), read: false }); } }
 </script>
 </body>
-</html>
+    </html>
+    
