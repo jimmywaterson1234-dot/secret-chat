@@ -2,138 +2,145 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Platinum Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spark Legacy Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --bg: #0e1621; --panel: #17212b; --accent: #2b5278; --blue: #50a2e3; --text: #ffffff; --my-msg: #2b5278; --other-msg: #182533; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; }
-        
-        #app { display: flex; height: 100dvh; width: 100vw; flex-direction: column; }
-        .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; border-bottom: 1px solid #000; }
-        
-        #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; padding: 10px; }
-        #sidePanel.hidden { display: none; }
-        
-        /* КРАСИВАЯ ОБВОДКА ЧАТОВ */
-        .chat-item { 
-            background: var(--panel); 
-            margin-bottom: 8px; 
-            border-radius: 15px; 
-            padding: 12px; 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            border: 1px solid rgba(80, 162, 227, 0.3); 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: 0.2s;
+        :root { --bg: #0e1621; --panel: #17212b; --blue: #50a2e3; --text: #fff; --my-msg: #2b5278; --other-msg: #182533; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
+
+        /* Адаптивный интерфейс */
+        #app { display: flex; width: 100vw; height: 100dvh; }
+        #sidePanel { width: 350px; border-right: 1px solid #000; display: flex; flex-direction: column; background: var(--bg); flex-shrink: 0; transition: 0.3s; }
+        #chatMain { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; }
+
+        @media (max-width: 768px) {
+            #sidePanel { width: 100%; position: absolute; z-index: 500; }
+            #sidePanel.hidden { transform: translateX(-100%); }
+            #chatMain { width: 100%; }
         }
-        .chat-item:active { transform: scale(0.98); border-color: var(--blue); }
-        
-        #chatMain { display: none; flex-direction: column; height: 100%; width: 100%; background: var(--bg); position: relative; z-index: 200; }
-        #chatMain.active { display: flex; }
-        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
 
-        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; margin-bottom: 4px; }
+        .header { height: 60px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; gap: 10px; justify-content: space-between; border-bottom: 1px solid #000; }
+        .chat-list { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        /* Дизайн карточки чата */
+        .chat-item { 
+            background: var(--panel); border: 1px solid rgba(80,162,227,0.2); 
+            padding: 12px; border-radius: 12px; display: flex; align-items: center; 
+            gap: 12px; margin-bottom: 8px; cursor: pointer; transition: 0.2s;
+        }
+        .chat-item:hover { border-color: var(--blue); }
+        .ava { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: #242f3d; }
+
+        /* Сообщения */
+        #msgs-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg-row { display: flex; gap: 10px; max-width: 80%; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; background: var(--other-msg); cursor: pointer; }
-        .my .bubble { background: var(--my-msg); border-bottom-right-radius: 4px; }
-        .bubble video { width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 3px solid var(--blue); }
-        .bubble audio { height: 35px; width: 170px; }
+        .bubble { padding: 10px 15px; border-radius: 15px; background: var(--other-msg); cursor: pointer; font-size: 15px; position: relative; }
+        .my .bubble { background: var(--my-msg); border-bottom-right-radius: 2px; }
+        .bubble video { width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 2px solid var(--blue); }
+        .bubble audio { height: 35px; width: 160px; }
 
-        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: center; gap: 8px; border-top: 1px solid #000; }
-        #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 12px 18px; border-radius: 25px; outline: none; font-size: 14px; }
-        .btn-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: none; color: var(--blue); font-size: 22px; flex-shrink: 0; }
-        
-        #video-record-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000; display: none; text-align: center; }
-        #v-preview { width: 280px; height: 280px; border-radius: 50%; object-fit: cover; border: 5px solid var(--blue); background: #000; }
+        /* Поле ввода */
+        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: center; gap: 8px; }
+        #mInput { flex: 1; background: #242f3d; border: none; color: #fff; padding: 12px; border-radius: 20px; }
+        .btn { background: none; border: none; color: var(--blue); cursor: pointer; font-size: 20px; padding: 5px; }
 
-        .ava-msg { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: #242f3d; border: 1px solid rgba(255,255,255,0.1); }
+        /* Модалки */
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
-        .list-item { padding: 15px; border-bottom: 1px solid #1c2835; display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        .recording { color: #ff595a !important; animation: pulse 0.8s infinite; }
-        @keyframes pulse { 50% { transform: scale(1.1); } }
+        .modal-header { height: 60px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; }
+        .list-item { padding: 15px; border-bottom: 1px solid #1c2835; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        
+        #video-record-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; display: none; text-align: center; }
+        #v-preview { width: 260px; height: 260px; border-radius: 50%; object-fit: cover; border: 4px solid var(--blue); }
+        .rec-active { color: red !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<div id="auth-screen" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:4000; align-items:center; justify-content:center;">
-    <div style="background:var(--panel); padding:30px; border-radius:20px; text-align:center; width:310px;">
-        <h2 id="atitle">Spark</h2>
-        <input type="text" id="auser" placeholder="Логин" style="width:100%; padding:14px; margin:10px 0; background:#242f3d; color:white; border:none; border-radius:12px;">
-        <input type="password" id="apass" placeholder="Пароль" style="width:100%; padding:14px; margin:10px 0; background:#242f3d; color:white; border:none; border-radius:12px;">
-        <button onclick="doAuth()" style="width:100%; padding:14px; background:var(--blue); border:none; color:white; border-radius:12px; font-weight:bold;">Войти</button>
-        <p onclick="isR=!isR; document.getElementById('atitle').innerText=isR?'Регистрация':'Spark'" style="color:var(--blue); margin-top:15px; cursor:pointer;">Создать аккаунт</p>
+<div id="auth-screen" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center;">
+    <div style="background:var(--panel); padding:30px; border-radius:20px; width:300px; text-align:center;">
+        <h2 id="atitle">Вход</h2>
+        <input type="text" id="auser" placeholder="Логин" style="width:100%; padding:10px; margin:5px 0; border-radius:10px; border:none; background:#242f3d; color:#fff;">
+        <input type="password" id="apass" placeholder="Пароль" style="width:100%; padding:10px; margin:5px 0; border-radius:10px; border:none; background:#242f3d; color:#fff;">
+        <button onclick="doAuth()" style="width:100%; padding:10px; margin-top:10px; border-radius:10px; border:none; background:var(--blue); color:#fff;">Продолжить</button>
+        <p onclick="isR=!isR; document.getElementById('atitle').innerText=isR?'Регистрация':'Вход'" style="cursor:pointer; color:var(--blue); font-size:12px;">Сменить режим</p>
     </div>
 </div>
 
 <div id="video-record-overlay">
     <video id="v-preview" autoplay muted playsinline></video><br>
-    <button class="btn-icon" style="background:rgba(0,0,0,0.5); border-radius:50%; margin:15px auto;" onclick="switchCamera()">🔄</button>
+    <button class="btn" style="background:rgba(0,0,0,0.6); border-radius:50%; margin-top:10px;" onclick="switchCam()">🔄</button>
 </div>
 
 <div id="app">
     <div id="sidePanel">
-        <div class="header" style="background:transparent; border:none;">
-            <b style="font-size:22px;">Spark</b>
-            <div style="display:flex; gap:15px;">
-                <span onclick="searchByID()" style="font-size:20px;">🔍</span>
-                <span onclick="openGroupCreator()" style="font-size:20px;">👥</span>
-                <span onclick="toggleModal('settings-modal', true)" style="font-size:20px;">⚙️</span>
+        <div class="header">
+            <b>Spark</b>
+            <div>
+                <span class="btn" onclick="searchByShortID()">🔍</span>
+                <span class="btn" onclick="showGroupModal()">👥</span>
+                <span class="btn" onclick="toggleModal('settings-modal', true)">⚙️</span>
             </div>
         </div>
-        <div id="chat-list" style="flex:1; overflow-y:auto; padding-top:10px;"></div>
+        <div class="chat-list" id="chat-list"></div>
     </div>
 
     <div id="chatMain">
         <div class="header">
-            <div style="display:flex; align-items:center; gap:10px; cursor:pointer" onclick="if(curPeer && !isGMode) showProfile(curPeer)">
-                <span onclick="event.stopPropagation(); goBack()" style="font-size:30px; color:var(--blue); padding-right:10px;">‹</span>
-                <div><b id="chatTitle">...</b><br><span id="chatSubtitle" style="font-size:11px; color:var(--blue)">...</span></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span class="btn" onclick="goBack()" id="backBtn">‹</span>
+                <div onclick="openCurrentPeerProfile()" style="cursor:pointer;">
+                    <b id="chatTitle">Выберите чат</b><br>
+                    <span id="chatStatus" style="font-size:11px; color:var(--blue);"></span>
+                </div>
             </div>
         </div>
         <div id="msgs-container"></div>
         <div class="input-area">
-            <input type="file" id="fileInput" hidden onchange="uploadPhoto(this)">
-            <button class="btn-icon" onclick="document.getElementById('fileInput').click()">🖼️</button>
+            <input type="file" id="fileInp" hidden onchange="upImg(this)">
+            <button class="btn" onclick="document.getElementById('fileInp').click()">🖼️</button>
             <input type="text" id="mInput" placeholder="Сообщение...">
-            <button class="btn-icon" id="vidBtn" onclick="toggleVideoRecord()">📷</button>
-            <button class="btn-icon" id="voiceBtn" onclick="toggleVoice()">🎙️</button>
-            <button class="btn-icon" id="sendGlobalBtn" onclick="sendMsg()">➤</button>
+            <button class="btn" id="vBtn" onclick="recVideo()">📷</button>
+            <button class="btn" id="aBtn" onclick="recVoice()">🎙️</button>
+            <button class="btn" onclick="send()">➤</button>
         </div>
     </div>
 </div>
 
 <div id="settings-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:25px;">✕</span><b>Настройки</b></div>
-    <div class="list-item">🆔 Мой ID: <b id="my-display-id" style="color:var(--blue)"></b></div>
-    <div class="list-item" onclick="upd('nick')">👤 Изменить ник</div>
-    <div class="list-item" onclick="upd('bio')">📝 О себе</div>
-    <div class="list-item" onclick="upd('ava')">🖼️ Ссылка на аватар</div>
-    <div class="list-item" style="background:gold; color:#000; font-weight:bold" onclick="checkSigma()">⚡ СИГМА ПАНЕЛЬ</div>
-    <div class="list-item" onclick="logout()" style="color:red">🚪 Выйти</div>
+    <div class="modal-header"><span class="btn" onclick="toggleModal('settings-modal', false)">✕</span><b>Настройки</b></div>
+    <div class="list-item">ID: <b id="myIDDisplay"></b></div>
+    <div class="list-item" onclick="upd('nick')">Ник</div>
+    <div class="list-item" onclick="upd('bio')">О себе</div>
+    <div class="list-item" onclick="upd('ava')">Аватар (URL)</div>
+    <div class="list-item" onclick="upd('pass')">Пароль</div>
+    <div class="list-item" style="color:gold" onclick="openSigma()">⚡ СИГМА ПАНЕЛЬ</div>
+    <div class="list-item" style="color:red" onclick="logout()">🚪 Выйти</div>
 </div>
 
 <div id="profile-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:25px;">✕</span><b>Профиль</b></div>
-    <div id="profile-content" style="padding:40px; text-align:center;"></div>
+    <div class="modal-header"><span class="btn" onclick="toggleModal('profile-modal', false)">✕</span><b>Профиль</b></div>
+    <div id="prof-cont" style="padding:40px; text-align:center;"></div>
 </div>
 
 <div id="group-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('group-modal', false)">✕</span><b>Создать группу</b> <button onclick="saveGroup()">OK</button></div>
-    <div id="group-list" style="flex:1; overflow-y:auto"></div>
-</div>
-
-<div id="forward-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('forward-modal', false)">✕</span><b>Переслать</b></div>
-    <div id="forward-list" style="flex:1; overflow-y:auto"></div>
+    <div class="modal-header"><span class="btn" onclick="toggleModal('group-modal', false)">✕</span><b>Создать группу</b></div>
+    <div id="group-users" style="flex:1; overflow-y:auto"></div>
+    <button onclick="createGroup()" style="padding:15px; background:var(--blue); border:none; color:#fff;">Создать</button>
 </div>
 
 <div id="sigma-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('sigma-modal', false)">✕</span><b>SIGMA PANEL</b></div>
+    <div class="modal-header"><span class="btn" onclick="toggleModal('sigma-modal', false)">✕</span><b>SIGMA</b></div>
     <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
+</div>
+
+<div id="fwd-modal" class="modal">
+    <div class="modal-header"><span class="btn" onclick="toggleModal('fwd-modal', false)">✕</span><b>Переслать в...</b></div>
+    <div id="fwd-list" style="flex:1; overflow-y:auto"></div>
 </div>
 
 <script>
@@ -141,183 +148,254 @@
     firebase.initializeApp(config);
     const db = firebase.database();
 
-    let myID = localStorage.getItem('chat_id'), curPeer = null, isGMode = false, isR = false;
-    let videoStream, videoRecorder, chunks = [], isVRec = false, camMode = "user", myNick = "";
-    let voiceRec, isVoiceRec = false;
+    let myUID = localStorage.getItem('spark_uid'), curPeer = null, isG = false, isR = false;
+    let vStream, vRec, vChunks = [], isV = false, cam = "user";
+    let aRec, isA = false;
+    let myData = {};
 
-    window.onload = () => { if (!myID) document.getElementById('auth-screen').style.display = 'flex'; else startApp(); };
+    window.onload = () => { if(!myUID) document.getElementById('auth-screen').style.display='flex'; else init(); };
 
-    function startApp() {
-        // Установка онлайна
-        const statusRef = db.ref('status/' + myID);
-        statusRef.set('онлайн');
-        statusRef.onDisconnect().set('оффлайн');
-
-        db.ref('profiles/'+myID).on('value', s => { 
-            const p = s.val(); if(!p) return;
-            myNick = p.nick;
-            document.getElementById('my-display-id').innerText = p.shortID || "не задан"; 
+    function init() {
+        db.ref('profiles/'+myUID).on('value', s => {
+            myData = s.val(); if(!myData) return;
+            document.getElementById('myIDDisplay').innerText = myData.shortID;
+            db.ref('status/'+myUID).set('онлайн');
+            db.ref('status/'+myUID).onDisconnect().set('оффлайн');
         });
 
-        db.ref('friends/'+myID).on('value', s => {
+        // Загрузка чатов
+        db.ref('friends/'+myUID).on('value', s => {
             const list = document.getElementById('chat-list');
-            list.innerHTML = `<div class="chat-item" onclick="openChat('global')"><div class="ava-msg" style="background:var(--blue); display:flex; align-items:center; justify-content:center; color:white">🌐</div><div><b>Общий чат</b><br><small id="glob-on">...</small></div></div>`;
+            list.innerHTML = `<div class="chat-item" onclick="openChat('global', false)">
+                <div class="ava" style="display:flex;align-items:center;justify-content:center;color:#fff;background:var(--blue)">🌐</div>
+                <div><b>Общий чат</b><br><small id="g-onl">...</small></div>
+            </div>`;
             
             db.ref('status').on('value', st => {
-                let c = 0; st.forEach(x => { if(x.val()==='онлайн') c++; });
-                if(document.getElementById('glob-on')) document.getElementById('glob-on').innerText = c + " онлайн";
+                let count = 0; st.forEach(x => { if(x.val()==='онлайн') count++; });
+                if(document.getElementById('g-onl')) document.getElementById('g-onl').innerText = count + " онлайн";
             });
 
             s.forEach(f => {
-                const isG = f.val().isGroup;
-                db.ref(isG ? 'groups/'+f.key : 'profiles/'+f.key).once('value', p => {
-                    const d = p.val(); if(!d) return;
+                const isGroup = f.val().isGroup;
+                db.ref(isGroup ? 'groups/'+f.key : 'profiles/'+f.key).once('value', p => {
+                    const d = p.val();
                     const item = document.createElement('div');
                     item.className = 'chat-item';
-                    item.onclick = () => openChat(f.key, isG);
+                    item.onclick = () => openChat(f.key, isGroup);
                     item.innerHTML = `
-                        <img src="${isG ? 'https://cdn-icons-png.flaticon.com/512/32/32441.png' : (d.ava || 'https://cdn-icons-png.flaticon.com/512/149/149071.png')}" class="ava-msg">
-                        <div><b>${isG ? d.name : d.nick}</b><br><small class="st-${f.key}">${isG?'группа':''}</small></div>
+                        <img src="${isGroup ? 'https://cdn-icons-png.flaticon.com/512/32/32441.png' : (d.ava || 'https://cdn-icons-png.flaticon.com/512/149/149071.png')}" class="ava">
+                        <div><b>${isGroup ? d.name : d.nick}</b><br><small class="st-${f.key}">${isGroup?'группа':''}</small></div>
                     `;
                     list.appendChild(item);
-                    if(!isG) db.ref('status/'+f.key).on('value', sn => { if(document.querySelector('.st-'+f.key)) document.querySelector('.st-'+f.key).innerText = sn.val() || 'оффлайн'; });
+                    if(!isGroup) db.ref('status/'+f.key).on('value', sn => {
+                        const el = document.querySelector('.st-'+f.key);
+                        if(el) el.innerText = sn.val() || 'оффлайн';
+                    });
                 });
             });
         });
     }
 
-    function openChat(id, isG = false) {
-        curPeer = id === 'global' ? null : id; isGMode = isG;
-        document.getElementById('sidePanel').classList.add('hidden');
-        document.getElementById('chatMain').classList.add('active');
-        const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+    function openChat(id, groupMode) {
+        curPeer = id === 'global' ? null : id; isG = groupMode;
+        if(window.innerWidth <= 768) document.getElementById('sidePanel').classList.add('hidden');
+        
+        const cont = document.getElementById('msgs-container'); cont.innerHTML = '';
+        const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages';
         
         if(!curPeer) {
             document.getElementById('chatTitle').innerText = "Общий чат";
+            document.getElementById('chatStatus').innerText = "все пользователи";
         } else {
             db.ref(isG ? 'groups/'+id : 'profiles/'+id).once('value', p => {
                 document.getElementById('chatTitle').innerText = isG ? p.val().name : p.val().nick;
-                if(!isG) db.ref('status/'+id).on('value', st => { document.getElementById('chatSubtitle').innerText = st.val() || 'оффлайн'; });
-                else document.getElementById('chatSubtitle').innerText = "группа";
+                if(!isG) db.ref('status/'+id).on('value', s => { document.getElementById('chatStatus').innerText = s.val() || 'оффлайн'; });
             });
         }
 
-        const cont = document.getElementById('msgs-container'); cont.innerHTML = '';
         db.ref(path).off();
-        db.ref(path).limitToLast(40).on('child_added', snap => {
-            const m = snap.val(); const isMy = m.u === myID;
-            const row = document.createElement('div'); row.className = `msg-row ${isMy?'my':'other'}`;
-            let fwd = m.fFrom ? `<div style="font-size:11px; color:var(--blue); margin-bottom:4px;">↪️ Переслано от ${m.fFrom}</div>` : "";
-            let content = m.type==='video' ? `<video src="${m.m}" autoplay loop muted playsinline></video>` : 
-                          m.type==='voice' ? `<audio src="${m.m}" controls></audio>` :
-                          m.type==='image' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px;">` : 
-                          `<span>${m.m.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#87cefa">$1</a>')}</span>`;
+        db.ref(path).limitToLast(50).on('child_added', snap => {
+            const m = snap.val();
+            const row = document.createElement('div');
+            row.className = `msg-row ${m.u === myUID ? 'my' : ''}`;
+            let fwd = m.fwd ? `<div style="font-size:10px; opacity:0.6">↪ Переслано от ${m.fwd}</div>` : '';
+            let body = m.t === 'img' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px;">` :
+                       m.t === 'vid' ? `<video src="${m.m}" autoplay loop muted playsinline></video>` :
+                       m.t === 'voice' ? `<audio src="${m.m}" controls></audio>` : `<span>${m.m}</span>`;
             
-            row.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')">
-                             <div class="bubble" onclick="msgAction('${snap.key}','${m.u}','${m.m}','${m.type}')">${fwd}${content}</div>`;
-            cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).once('value', p => { if(p.val()) document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=p.val().ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'); });
+            row.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="ava i-${m.u}" style="width:30px;height:30px;" onclick="showUser('${m.u}')">
+                             <div class="bubble" onclick="msgMenu('${snap.key}','${m.u}','${m.m}','${m.t}')">${fwd}${body}</div>`;
+            cont.appendChild(row);
+            cont.scrollTop = cont.scrollHeight;
+            db.ref('profiles/'+m.u).once('value', p => { if(p.val() && p.val().ava) document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=p.val().ava); });
         });
     }
 
-    // ВИДЕО КРУЖКИ С ПЕРЕВОРОТОМ
-    async function toggleVideoRecord() {
-        if(!isVRec) {
-            videoStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camMode}, audio:true});
-            document.getElementById('v-preview').srcObject = videoStream;
+    // Сообщения и пересылка
+    function msgMenu(id, u, m, t) {
+        if(u === myUID) {
+            if(confirm("Переслать? (Отмена - Удалить)")) openFwd(m, t, myData.nick);
+            else { const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages'; db.ref(path+'/'+id).remove(); }
+        } else if(confirm("Переслать?")) {
+            db.ref('profiles/'+u).once('value', p => openFwd(m, t, p.val().nick));
+        }
+    }
+
+    function openFwd(m, t, from) {
+        const list = document.getElementById('fwd-list'); list.innerHTML = '';
+        db.ref('friends/'+myUID).once('value', s => {
+            s.forEach(f => {
+                const item = document.createElement('div'); item.className = 'list-item';
+                item.innerText = f.key; // Для простоты
+                item.onclick = () => {
+                    const path = f.val().isGroup ? 'group_msgs/'+f.key : 'privates/'+[myUID, f.key].sort().join('_');
+                    db.ref(path).push({u:myUID, m:m, t:t, fwd:from, time:Date.now()});
+                    toggleModal('fwd-modal', false);
+                };
+                list.appendChild(item);
+            });
+            toggleModal('fwd-modal', true);
+        });
+    }
+
+    // Кружки и Голос
+    async function recVideo() {
+        if(!isV) {
+            vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cam}, audio:true});
+            document.getElementById('v-preview').srcObject = vStream;
             document.getElementById('video-record-overlay').style.display='block';
-            videoRecorder = new MediaRecorder(videoStream);
-            chunks = [];
-            videoRecorder.ondataavailable = e => chunks.push(e.data);
-            videoRecorder.onstop = () => {
-                const r = new FileReader();
-                r.readAsDataURL(new Blob(chunks, {type:'video/mp4'}));
-                r.onload = () => sendMedia(r.result, 'video');
-                videoStream.getTracks().forEach(t=>t.stop());
+            vRec = new MediaRecorder(vStream); vChunks = [];
+            vRec.ondataavailable = e => vChunks.push(e.data);
+            vRec.onstop = () => {
+                const reader = new FileReader(); reader.readAsDataURL(new Blob(vChunks, {type:'video/mp4'}));
+                reader.onload = () => sendMedia(reader.result, 'vid');
+                vStream.getTracks().forEach(t=>t.stop());
                 document.getElementById('video-record-overlay').style.display='none';
             };
-            videoRecorder.start();
-            isVRec = true;
-            document.getElementById('vidBtn').classList.add('recording');
-        } else {
-            // Кнопка 📷 теперь только открывает, отправка через ➤
-        }
+            vRec.start(); isV=true; document.getElementById('vBtn').classList.add('rec-active');
+        } else { vRec.stop(); isV=false; document.getElementById('vBtn').classList.remove('rec-active'); }
     }
 
-    async function switchCamera() {
-        if(!isVRec) return;
-        camMode = camMode === "user" ? "environment" : "user";
-        const newStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camMode}, audio:true});
-        videoStream.getTracks().forEach(t => t.stop());
-        videoStream = newStream;
-        document.getElementById('v-preview').srcObject = newStream;
-        // Чтобы Recorder не останавливался, мы просто подменяем треки (в современных браузерах работает)
-        const videoTrack = newStream.getVideoTracks()[0];
-        const sender = videoRecorder.stream.getVideoTracks()[0];
-        videoRecorder.stream.removeTrack(sender);
-        videoRecorder.stream.addTrack(videoTrack);
+    async function switchCam() {
+        if(!isV) return;
+        cam = cam === "user" ? "environment" : "user";
+        vStream.getTracks().forEach(t=>t.stop());
+        vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cam}, audio:true});
+        document.getElementById('v-preview').srcObject = vStream;
+        // Переподключение трека в рекордер
+        const videoTrack = vStream.getVideoTracks()[0];
+        const sender = vRec.stream.getVideoTracks()[0];
+        vRec.stream.removeTrack(sender); vRec.stream.addTrack(videoTrack);
     }
 
-    function sendMsg() {
-        if(isVRec) { videoRecorder.stop(); isVRec = false; document.getElementById('vidBtn').classList.remove('recording'); return; }
-        if(isVoiceRec) { voiceRec.stop(); isVoiceRec = false; document.getElementById('voiceBtn').classList.remove('recording'); return; }
-        const v = document.getElementById('mInput').value.trim();
-        if(!v) return;
-        sendMedia(v, 'text');
-        document.getElementById('mInput').value = '';
-    }
-
-    // Остальные функции (Пересылка, Сигма, Профиль)
-    function msgAction(msgId, senderId, content, type) {
-        if(senderId === myID) {
-            if(confirm("Удалить или переслать? (OK - Переслать, Отмена - Удалить)")) startForward(content, type, myNick);
-            else { const p = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages'; db.ref(p+'/'+msgId).remove(); }
-        } else if(confirm("Переслать это сообщение?")) {
-            db.ref('profiles/'+senderId).once('value', p => startForward(content, type, p.val().nick));
-        }
-    }
-
-    function startForward(c, t, f) {
-        const l = document.getElementById('forward-list'); l.innerHTML = '';
-        db.ref('friends/'+myID).once('value', s => {
-            s.forEach(f_item => {
-                db.ref(f_item.val().isGroup ? 'groups/'+f_item.key : 'profiles/'+f_item.key).once('value', p => {
-                    const d = document.createElement('div'); d.className = 'list-item'; d.innerText = f_item.val().isGroup?p.val().name:p.val().nick;
-                    d.onclick = () => {
-                        const path = f_item.val().isGroup ? 'group_msgs/'+f_item.key : 'privates/'+[myID, f_item.key].sort().join('_');
-                        db.ref(path).push({u:myID, m:c, type:t, fFrom:f, t:Date.now()});
-                        toggleModal('forward-modal', false); alert("Переслано!");
-                    };
-                    l.appendChild(d);
-                });
-            });
-            toggleModal('forward-modal', true);
-        });
-    }
-
-    async function toggleVoice() {
-        if(!isVoiceRec) {
+    async function recVoice() {
+        if(!isA) {
             const s = await navigator.mediaDevices.getUserMedia({audio:true});
-            voiceRec = new MediaRecorder(s); chunks = [];
-            voiceRec.ondataavailable = e => chunks.push(e.data);
-            voiceRec.onstop = () => { const fr = new FileReader(); fr.readAsDataURL(new Blob(chunks)); fr.onload = () => sendMedia(fr.result, 'voice'); };
-            voiceRec.start(); isVoiceRec = true; document.getElementById('voiceBtn').classList.add('recording');
-        } else { voiceRec.stop(); isVoiceRec = false; document.getElementById('voiceBtn').classList.remove('recording'); }
+            aRec = new MediaRecorder(s); vChunks = [];
+            aRec.ondataavailable = e => vChunks.push(e.data);
+            aRec.onstop = () => {
+                const r = new FileReader(); r.readAsDataURL(new Blob(vChunks));
+                r.onload = () => sendMedia(r.result, 'voice');
+            };
+            aRec.start(); isA=true; document.getElementById('aBtn').classList.add('rec-active');
+        } else { aRec.stop(); isA=false; document.getElementById('aBtn').classList.remove('rec-active'); }
     }
 
-    function checkSigma() {
-        if(prompt("Секретный код:") === '1234567891011121314151617181920') {
-            const list = document.getElementById('sigma-list'); list.innerHTML = '';
+    function send() {
+        if(isV) { recVideo(); return; }
+        if(isA) { recVoice(); return; }
+        const val = document.getElementById('mInput').value.trim();
+        if(!val) return;
+        sendMedia(val, 'txt'); document.getElementById('mInput').value = '';
+    }
+
+    function sendMedia(m, t) {
+        const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages';
+        db.ref(path).push({u:myUID, m:m, t:t, time:Date.now()});
+    }
+
+    // Сигма и Профили
+    function openSigma() {
+        if(prompt("Код:") === '1234567891011121314151617181920') {
+            const l = document.getElementById('sigma-list'); l.innerHTML = '';
             db.ref('profiles').once('value', s => {
                 s.forEach(u => {
                     const d = document.createElement('div'); d.className = 'list-item';
-                    d.innerHTML = `<span>${u.val().nick}</span> <button onclick="localStorage.setItem('chat_id','${u.key}');location.reload()">Вход</button> <button onclick="db.ref('profiles/${u.key}').remove()">Удалить</button>`;
-                    list.appendChild(d);
+                    d.innerHTML = `${u.val().nick} <button onclick="localStorage.setItem('spark_uid','${u.key}');location.reload()">Вход</button>`;
+                    l.appendChild(d);
                 });
                 toggleModal('sigma-modal', true);
             });
         }
     }
 
-    function sendMedia(c, t) { const p = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages'; db.ref(p).push({u:myID, m:c, type:t, t:Date.now()}); }
-    function showProfile(uid) { db.ref('profiles/'+uid).once('value', s => { const p = s.val(); document.getElementById('profile-content').innerHTML = `<img src="${p.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:120px; height:120px; border-radius:50%; object-fit:cover;"><h2>${p.nick}</h2><p style="color:var(--blue)">ID: ${p.shortID}</p><p>${p.bio||'spark'}</p><button onclick="toggleModal('profile-modal',false);openChat('${uid}')" style="padding:12px 25px; background:var(--blue); border:none; color:white; border-radius:15px; margin-top:15px;">Написать</button>`; toggle
+    function showUser(uid) {
+        db.ref('profiles/'+uid).once('value', s => {
+            const p = s.val();
+            document.getElementById('prof-cont').innerHTML = `
+                <img src="${p.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:100px;height:100px">
+                <h2>${p.nick}</h2><p>ID: ${p.shortID}</p><p>${p.bio||'spark user'}</p>
+                <button onclick="toggleModal('profile-modal',false);openChat('${uid}',false)" style="padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;">Написать</button>
+            `;
+            toggleModal('profile-modal', true);
+        });
+    }
+
+    function searchByShortID() {
+        const id = prompt("Введите ID:"); if(!id) return;
+        db.ref('shortIDs/'+id).once('value', s => {
+            if(s.exists()) {
+                const target = s.val();
+                db.ref('friends/'+myUID+'/'+target).set({isGroup:false});
+                db.ref('friends/'+target+'/'+myUID).set({isGroup:false});
+                openChat(target, false);
+            } else alert("Не найден");
+        });
+    }
+
+    function showGroupModal() {
+        const cont = document.getElementById('group-users'); cont.innerHTML = '';
+        window.selUsers = [];
+        db.ref('profiles').once('value', s => {
+            s.forEach(u => { if(u.key !== myUID) {
+                const d = document.createElement('div'); d.className = 'list-item'; d.innerHTML = `${u.val().nick} <input type="checkbox" onchange="if(this.checked) selUsers.push('${u.key}'); else selUsers.splice(selUsers.indexOf('${u.key}'),1)">`;
+                cont.appendChild(d);
+            }});
+            toggleModal('group-modal', true);
+        });
+    }
+
+    function createGroup() {
+        const name = prompt("Имя группы:"); if(!name) return;
+        const gid = 'g'+Date.now();
+        db.ref('groups/'+gid).set({name: name, owner: myUID});
+        [...selUsers, myUID].forEach(u => db.ref('friends/'+u+'/'+gid).set({isGroup:true}));
+        toggleModal('group-modal', false);
+    }
+
+    function doAuth() {
+        const u = document.getElementById('auser').value.toLowerCase().trim(), p = document.getElementById('apass').value;
+        if(isR) {
+            const uid = 'u'+Date.now(), sid = 'id'+Math.floor(10000+Math.random()*90000);
+            db.ref('profiles/'+uid).set({nick:u, pass:p, shortID:sid, bio:'spark', ava:''});
+            db.ref('nick_to_id/'+u).set(uid); db.ref('shortIDs/'+sid).set(uid);
+            localStorage.setItem('spark_uid', uid); location.reload();
+        } else {
+            db.ref('nick_to_id/'+u).once('value', s => {
+                if(s.exists()) db.ref('profiles/'+s.val()).once('value', sn => {
+                    if(sn.val().pass === p) { localStorage.setItem('spark_uid', s.val()); location.reload(); }
+                });
+            });
+        }
+    }
+
+    function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
+    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); }
+    function logout() { localStorage.clear(); location.reload(); }
+    function upd(k) { const v = prompt("Новое значение:"); if(v) db.ref('profiles/'+myUID+'/'+k).set(v); }
+    function upImg(i) { const f = i.files[0]; if(f) { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => sendMedia(r.result, 'img'); } }
+    function openCurrentPeerProfile() { if(curPeer && !isG) showUser(curPeer); }
+</script>
+</body>
+</html>
