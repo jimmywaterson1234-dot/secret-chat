@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spark Ultimate</title>
+    <title>Spark Ultimate Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -16,6 +16,7 @@
         #wall-layer { position: fixed; inset: 0; background-size: cover; background-position: center; opacity: 0.2; z-index: 1; pointer-events: none; }
         #app { position: relative; display: flex; height: 100dvh; width: 100vw; flex-direction: column; z-index: 5; }
 
+        /* UI Elements */
         .header { height: 60px; padding: 0 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #000; flex-shrink: 0; }
         #sidePanel { position: absolute; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; }
         #sidePanel.hidden { display: none; }
@@ -25,7 +26,7 @@
         #chatMain.active { display: flex; }
         
         #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; margin-bottom: 4px; }
+        .msg-row { display: flex; gap: 8px; max-width: 85%; align-items: flex-end; width: fit-content; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
         .bubble { padding: 10px 14px; border-radius: 18px; font-size: 15px; word-wrap: break-word; cursor: pointer; position: relative; }
         .other .bubble { background: var(--other-msg); border-bottom-left-radius: 4px; }
@@ -38,16 +39,20 @@
         #mInput { flex: 1; background: #242f3d; border: none; color: white; padding: 10px 15px; border-radius: 18px; outline: none; resize: none; max-height: 120px; min-height: 40px; }
         .btn-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: none; color: var(--blue); font-size: 24px; }
 
+        /* Modals */
         .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
         .modal.active { display: flex; }
-        .list-item { padding: 15px; border-bottom: 1px solid #1c2835; display: flex; align-items: center; gap: 15px; cursor: pointer; }
-        .recording { color: #ff595a !important; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .list-item { padding: 15px; border-bottom: 1px solid #1c2835; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: 0.2s; }
+        .list-item:active { background: #242f3d; }
+        .selected { background: var(--accent) !important; }
 
         #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .auth-box { background: var(--panel); padding: 25px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; }
         .auth-box input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #242f3d; color: white; outline: none; }
         .auth-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; background: var(--blue); color: white; font-weight: bold; cursor: pointer; }
+        
+        .recording { color: #ff595a !important; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -56,17 +61,17 @@
 
 <div id="auth-screen" style="display: none;">
     <div class="auth-box">
-        <h2 id="auth-title">Вход</h2>
-        <input type="text" id="auth-user" placeholder="Логин">
-        <input type="password" id="auth-pass" placeholder="Пароль">
-        <button onclick="handleAuth()">Продолжить</button>
-        <p onclick="isReg=!isReg; document.getElementById('auth-title').innerText=isReg?'Регистрация':'Вход'" style="color:var(--blue); cursor:pointer; margin-top:15px">Сменить режим</p>
+        <h2 id="atitle">Вход</h2>
+        <input type="text" id="auser" placeholder="Логин">
+        <input type="password" id="apass" placeholder="Пароль">
+        <button onclick="doAuth()">Войти</button>
+        <p onclick="isR=!isR; document.getElementById('atitle').innerText=isR?'Регистрация':'Вход'" style="color:var(--blue); cursor:pointer; margin-top:15px">Сменить режим</p>
     </div>
 </div>
 
 <div id="app">
     <div id="sidePanel">
-        <div class="header"><b>Spark</b> <div><span onclick="openGroupCreator()" style="cursor:pointer; margin-right:15px; font-size:20px;">👥+</span><span onclick="toggleModal('settings-modal', true)" style="cursor:pointer">⚙️</span></div></div>
+        <div class="header"><b>Spark</b> <div><span onclick="openGroupCreator()" style="cursor:pointer; margin-right:20px; font-size:22px;">👥+</span><span onclick="toggleModal('settings-modal', true)" style="cursor:pointer; font-size:20px;">⚙️</span></div></div>
         <div id="chat-list" style="flex:1; overflow-y:auto"></div>
     </div>
 
@@ -88,26 +93,27 @@
     </div>
 </div>
 
+<div id="settings-modal" class="modal">
+    <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
+    <div class="list-item" onclick="upd('nick')">👤 Изменить ник <span id="st-nick" style="margin-left:auto; opacity:0.5"></span></div>
+    <div class="list-item" onclick="upd('ava')">🖼️ Сменить аватар (URL)</div>
+    <div class="list-item" onclick="upd('pass')">🔑 Сменить пароль</div>
+    <div class="list-item" onclick="logout()" style="color:red">🚪 Выйти из аккаунта</div>
+</div>
+
 <div id="group-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('group-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Выберите участников</b><button onclick="finishGroupCreate()" style="background:none; border:none; color:var(--blue); font-weight:bold">Создать</button></div>
-    <div id="users-to-group" style="flex:1; overflow-y:auto"></div>
+    <div class="header"><span onclick="toggleModal('group-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Участники</b> <button onclick="saveGroup()" style="background:none; border:none; color:var(--blue); font-weight:bold; font-size:16px">Создать</button></div>
+    <div id="group-users-list" style="flex:1; overflow-y:auto"></div>
 </div>
 
 <div id="forward-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('forward-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Переслать в...</b></div>
-    <div id="forward-list" style="flex:1; overflow-y:auto"></div>
-</div>
-
-<div id="settings-modal" class="modal">
-    <div class="header"><span onclick="toggleModal('settings-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Настройки</b></div>
-    <div class="list-item" onclick="changeVal('nick')">👤 Ник <span id="st-nick" style="margin-left:auto; opacity:0.6"></span></div>
-    <div class="list-item" onclick="changeVal('ava')">🖼️ Сменить аватар (URL)</div>
-    <div class="list-item" onclick="logout()" style="color:red">🚪 Выйти</div>
+    <div class="header"><span onclick="toggleModal('forward-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Переслать</b></div>
+    <div id="forward-targets" style="flex:1; overflow-y:auto"></div>
 </div>
 
 <div id="profile-modal" class="modal">
     <div class="header"><span onclick="toggleModal('profile-modal', false)" style="font-size:30px; cursor:pointer">✕</span><b>Профиль</b></div>
-    <div id="profile-content" style="padding:30px; text-align:center"></div>
+    <div id="profile-content" style="padding:40px; text-align:center"></div>
 </div>
 
 <script>
@@ -115,8 +121,9 @@
     firebase.initializeApp(config);
     const db = firebase.database();
 
-    let myID = localStorage.getItem('chat_id'), isReg = false, curPeer = null, isGroupMode = false;
-    let mediaRecorder, audioChunks = [], isRecording = false, typingTimeout, forwardText = "";
+    let myID = localStorage.getItem('chat_id'), isR = false, curPeer = null, isGMode = false;
+    let recorder, chunks = [], isRec = false, tOut, fwdTxt = "";
+    let selectedForGroup = [];
 
     window.onload = () => { if (!myID) document.getElementById('auth-screen').style.display = 'flex'; else startApp(); };
 
@@ -125,7 +132,6 @@
         db.ref('status/'+myID).onDisconnect().set({state:'offline'});
         db.ref('profiles/'+myID).on('value', s => { if(s.val()) document.getElementById('st-nick').innerText = s.val().nick; });
 
-        // Загрузка чатов
         db.ref('friends/'+myID).on('value', s => {
             const list = document.getElementById('chat-list');
             list.innerHTML = `<div class="chat-item" onclick="openChat('global')"><div class="ava-msg" style="background:var(--blue);display:flex;align-items:center;justify-content:center">🌐</div><b>Общий чат</b></div>`;
@@ -141,12 +147,12 @@
     }
 
     function openChat(id, isG = false) {
-        curPeer = id === 'global' ? null : id; isGroupMode = isG;
+        curPeer = id === 'global' ? null : id; isGMode = isG;
         document.getElementById('sidePanel').classList.add('hidden');
         document.getElementById('chatMain').classList.add('active');
         const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
         
-        // Статусы онлайн
+        // Статусы
         if(!curPeer) {
             db.ref('status').on('value', s => { let c=0; s.forEach(u=>{if(u.val().state==='online')c++}); document.getElementById('chatSubtitle').innerText = c+" онлайн"; });
         } else if(!isG) {
@@ -154,74 +160,92 @@
                 if(st.val()) document.getElementById('chatSubtitle').innerText = "печатает...";
                 else db.ref('status/'+curPeer).on('value', sn => { document.getElementById('chatSubtitle').innerText = sn.val()?.state==='online' ? 'в сети' : 'офлайн'; });
             });
-        } else { document.getElementById('chatSubtitle').innerText = "группа"; }
+        } else { document.getElementById('chatSubtitle').innerText = "групповой чат"; }
 
         const cont = document.getElementById('msgs-container'); cont.innerHTML = ''; db.ref(path).off();
         db.ref(path).limitToLast(40).on('child_added', snap => {
             const m = snap.val(); const isMy = m.u === myID;
-            if(!isMy) playNotify();
             const row = document.createElement('div'); row.className = `msg-row ${isMy?'my':'other'}`;
-            let content = m.type==='image' ? `<img src="${m.m}" style="max-width:200px;border-radius:10px">` : (m.type==='voice' ? `<audio src="${m.m}" controls></audio>` : m.m);
-            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showUser('${m.u}')">
-                <div class="bubble" onclick="msgMenu('${snap.key}','${m.u}','${m.m}')">${content}${isMy?`<span class="status-tick">${m.read?'✔✔':'✔'}</span>`:''}</div>`;
+            let html = m.type==='image' ? `<img src="${m.m}" style="max-width:200px;border-radius:10px">` : (m.type==='voice' ? `<audio src="${m.m}" controls></audio>` : m.m);
+            row.innerHTML = `<img src="" class="ava-msg i-${m.u}" onclick="showProfile('${m.u}')">
+                <div class="bubble" onclick="msgAction('${snap.key}','${m.u}','${m.m}')">${html}${isMy?`<span class="status-tick">${m.read?'✔✔':'✔'}</span>`:''}</div>`;
             cont.appendChild(row); cont.scrollTop = cont.scrollHeight;
-            if(!isMy && !m.read) db.ref(path+'/'+snap.key).update({read:true});
             db.ref('profiles/'+m.u).once('value', p => { if(p.val()) document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=p.val().ava); });
         });
     }
 
-    // Голосовые
+    // Голосовые (ИСПРАВЛЕНО)
     async function toggleVoice() {
-        if(!isRecording) {
-            const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(audioChunks, {type:'audio/ogg'});
-                const reader = new FileReader(); reader.readAsDataURL(blob);
-                reader.onload = () => {
-                    const path = curPeer ? (isGroupMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
-                    db.ref(path).push({u:myID, m:reader.result, type:'voice', t:Date.now()});
+        if(!isRec) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+                recorder = new MediaRecorder(stream);
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, {type:'audio/ogg'});
+                    const reader = new FileReader(); reader.readAsDataURL(blob);
+                    reader.onload = () => {
+                        const path = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+                        db.ref(path).push({u:myID, m:reader.result, type:'voice', t:Date.now()});
+                    };
+                    chunks = [];
                 };
-                audioChunks = [];
-            };
-            mediaRecorder.start(); isRecording = true; document.getElementById('voiceBtn').classList.add('recording');
+                recorder.start(); isRec = true; document.getElementById('voiceBtn').classList.add('recording');
+            } catch(e) { alert("Нет доступа к микрофону!"); }
         } else {
-            mediaRecorder.stop(); isRecording = false; document.getElementById('voiceBtn').classList.remove('recording');
+            recorder.stop(); isRec = false; document.getElementById('voiceBtn').classList.remove('recording');
         }
     }
 
-    // Группы
-    let selectedUsers = [], tempGroupName = "";
+    // Группы (КАК ТЫ ПРОСИЛ)
+    let tempGName = "";
     function openGroupCreator() {
-        tempGroupName = prompt("Назовите группу:"); if(!tempGroupName) return;
-        selectedUsers = [myID];
-        const list = document.getElementById('users-to-group'); list.innerHTML = '';
+        tempGName = prompt("Название группы:"); if(!tempGName) return;
+        selectedForGroup = [myID];
+        const list = document.getElementById('group-users-list'); list.innerHTML = '';
         db.ref('profiles').once('value', s => {
-            s.forEach(u => { if(u.key !== myID) list.innerHTML += `<div class="list-item" onclick="this.style.background='#2b5278';selectedUsers.push('${u.key}')"><img src="${u.val().ava}" class="ava-msg"><b>${u.val().nick}</b></div>`; });
+            s.forEach(u => {
+                if(u.key !== myID) {
+                    const item = document.createElement('div'); item.className = 'list-item';
+                    item.innerHTML = `<img src="${u.val().ava}" class="ava-msg"><b>${u.val().nick}</b>`;
+                    item.onclick = () => {
+                        item.classList.toggle('selected');
+                        if(item.classList.contains('selected')) selectedForGroup.push(u.key);
+                        else selectedForGroup = selectedForGroup.filter(id => id !== u.key);
+                    };
+                    list.appendChild(item);
+                }
+            });
             toggleModal('group-modal', true);
         });
     }
-    function finishGroupCreate() {
+    function saveGroup() {
         const gid = "g"+Date.now();
-        db.ref('groups/'+gid).set({name: tempGroupName, creator: myID, members: selectedUsers});
-        selectedUsers.forEach(uid => db.ref('friends/'+uid+'/'+gid).set({isGroup:true}));
-        toggleModal('group-modal', false); alert("Группа создана!");
+        db.ref('groups/'+gid).set({name: tempGName, creator: myID, members: selectedForGroup});
+        selectedForGroup.forEach(uid => db.ref('friends/'+uid+'/'+gid).set({isGroup:true}));
+        toggleModal('group-modal', false); alert("Группа " + tempGName + " создана!");
     }
 
-    // Пересылка
-    function msgMenu(id, uid, txt) {
+    // Пересылка (В ОТДЕЛЬНОМ ОКНЕ)
+    function msgAction(id, uid, txt) {
         if(uid === myID) { if(confirm("Удалить?")) {
-            const path = curPeer ? (isGroupMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+            const path = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
             db.ref(path+'/'+id).remove();
         }} else {
-            if(confirm("Переслать?")) {
-                forwardText = "[Переслано]: " + txt;
-                const list = document.getElementById('forward-list'); list.innerHTML = '';
+            if(confirm("Переслать сообщение?")) {
+                fwdTxt = "[Переслано]: " + txt;
+                const list = document.getElementById('forward-targets'); list.innerHTML = '';
                 db.ref('friends/'+myID).once('value', s => {
                     s.forEach(f => {
                         db.ref(f.val().isGroup ? 'groups/'+f.key : 'profiles/'+f.key).once('value', p => {
-                            list.innerHTML += `<div class="list-item" onclick="doForward('${f.key}', ${f.val().isGroup})"><b>${f.val().isGroup?p.val().name:p.val().nick}</b></div>`;
+                            const item = document.createElement('div'); item.className = 'list-item';
+                            item.innerHTML = `<b>${f.val().isGroup?p.val().name:p.val().nick}</b>`;
+                            item.onclick = () => {
+                                const path = f.val().isGroup ? 'group_msgs/'+f.key : 'privates/'+[myID, f.key].sort().join('_');
+                                db.ref(path).push({u:myID, m:fwdTxt, type:'text', t:Date.now()});
+                                toggleModal('forward-modal', false); alert("Переслано!");
+                            };
+                            list.appendChild(item);
                         });
                     });
                     toggleModal('forward-modal', true);
@@ -229,18 +253,12 @@
             }
         }
     }
-    function doForward(toId, isG) {
-        const path = isG ? 'group_msgs/'+toId : 'privates/'+[myID, toId].sort().join('_');
-        db.ref(path).push({u:myID, m:forwardText, type:'text', t:Date.now()});
-        toggleModal('forward-modal', false); alert("Отправлено!");
-    }
 
-    // Системные
-    function handleAuth() {
-        const u = document.getElementById('auth-user').value.toLowerCase(), p = document.getElementById('auth-pass').value;
-        if(isReg) {
-            const id = "u"+Date.now();
-            db.ref('nick_to_id/'+u).set(id);
+    // Прочее
+    function doAuth() {
+        const u = document.getElementById('auser').value.toLowerCase(), p = document.getElementById('apass').value;
+        if(isR) {
+            const id = "u"+Date.now(); db.ref('nick_to_id/'+u).set(id);
             db.ref('profiles/'+id).set({nick:u, pass:p, id:id, ava:"https://cdn-icons-png.flaticon.com/512/149/149071.png"});
             localStorage.setItem('chat_id', id); location.reload();
         } else {
@@ -253,17 +271,22 @@
     }
     function sendMsg() {
         const v = document.getElementById('mInput').value.trim(); if(!v) return;
-        const path = curPeer ? (isGroupMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
-        db.ref(path).push({u:myID, m:v, type:'text', t:Date.now(), read:false});
+        const path = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+        db.ref(path).push({u:myID, m:v, type:'text', t:Date.now()});
         document.getElementById('mInput').value = '';
     }
-    function handleTyping() { if(curPeer && !isGroupMode) { db.ref('typing/'+myID+'/'+curPeer).set(true); clearTimeout(typingTimeout); typingTimeout = setTimeout(()=>db.ref('typing/'+myID+'/'+curPeer).remove(), 2000); } }
-    function playNotify() { try { const a=new AudioContext(); const o=a.createOscillator(); const g=a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value=600; g.gain.exponentialRampToValueAtTime(0.01,a.currentTime+0.1); o.start(); o.stop(a.currentTime+0.1); }catch(e){} }
-    function toggleModal(id, s) { document.getElementById(id).classList.toggle('active', s); }
+    function uploadPhoto(input) {
+        const f = input.files[0]; if(!f) return; const r = new FileReader(); r.readAsDataURL(f); r.onload = () => {
+            const path = curPeer ? (isGMode ? 'group_msgs/'+curPeer : 'privates/'+[myID, curPeer].sort().join('_')) : 'messages';
+            db.ref(path).push({u:myID, m:r.result, type:'image', t:Date.now()});
+        };
+    }
+    function handleTyping() { if(curPeer && !isGMode) { db.ref('typing/'+myID+'/'+curPeer).set(true); clearTimeout(tOut); tOut = setTimeout(()=>db.ref('typing/'+myID+'/'+curPeer).remove(), 2000); } }
+    function showProfile(uid) { db.ref('profiles/'+uid).once('value', s => { const p=s.val(); document.getElementById('profile-content').innerHTML=`<img src="${p.ava}" style="width:100px;height:100px;border-radius:50%"><br><h2>${p.nick}</h2><br><button onclick="db.ref('friends/'+myID+'/${uid}').set({isGroup:false});toggleModal('profile-modal',false);openChat('${uid}')" style="padding:10px 20px; background:var(--blue); border:none; color:white; border-radius:10px">Написать</button>`; toggleModal('profile-modal', true); }); }
+    function upd(k) { const v=prompt("Введите:"); if(v) db.ref('profiles/'+myID+'/'+k).set(v); }
+    function toggleModal(id, s) { document.getElementById(id).style.display = s ? 'flex' : 'none'; }
     function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatMain').classList.remove('active'); }
     function logout() { localStorage.clear(); location.reload(); }
-    function changeVal(k) { const v=prompt("Новое значение:"); if(v) db.ref('profiles/'+myID+'/'+k).set(v); }
-    function showUser(uid) { db.ref('profiles/'+uid).once('value', s => { const p=s.val(); document.getElementById('profile-content').innerHTML=`<img src="${p.ava}" style="width:100px;height:100px;border-radius:50%"><br><h2>${p.nick}</h2><br><button onclick="db.ref('friends/'+myID+'/${uid}').set({isGroup:false});toggleModal('profile-modal',false);openChat('${uid}')" style="padding:10px 20px; background:var(--blue); border:none; color:white; border-radius:10px">Написать</button>`; toggleModal('profile-modal', true); }); }
 </script>
 </body>
 </html>
