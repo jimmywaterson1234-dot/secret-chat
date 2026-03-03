@@ -3,144 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Spark Legacy Fixed</title>
+    <title>Spark Telegram Edition</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --bg: #0e1621; --panel: #17212b; --blue: #50a2e3; --text: #fff; --my-msg: #2b5278; --other-msg: #182533; }
+        :root { 
+            --bg: #0e1621; --side: #17212b; --blue: #2b5278; --tg-blue: #50a2e3; 
+            --text: #ffffff; --msg-my: #2b5278; --msg-in: #182533; --hover: #232e3c;
+        }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
 
-        /* Адаптивный интерфейс */
+        /* ЭКРАН ВХОДА В СТИЛЕ ТГ */
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 5000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        .auth-card { width: 100%; max-width: 360px; text-align: center; padding: 20px; }
+        .tg-logo { width: 120px; height: 120px; background: var(--tg-blue); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 60px; }
+        .auth-input { width: 100%; background: var(--side); border: 1px solid #333; color: white; padding: 12px; border-radius: 10px; margin: 10px 0; font-size: 16px; }
+        .auth-btn { width: 100%; background: var(--tg-blue); border: none; color: white; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+
+        /* ГЛАВНЫЙ ИНТЕРФЕЙС */
         #app { display: flex; width: 100vw; height: 100dvh; }
-        #sidePanel { width: 350px; border-right: 1px solid #000; display: flex; flex-direction: column; background: var(--bg); flex-shrink: 0; transition: 0.3s; }
-        #chatMain { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; }
-
-        @media (max-width: 768px) {
-            #sidePanel { width: 100%; position: absolute; z-index: 500; }
-            #sidePanel.hidden { transform: translateX(-100%); }
-            #chatMain { width: 100%; }
-        }
-
-        .header { height: 60px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; gap: 10px; justify-content: space-between; border-bottom: 1px solid #000; }
-        .chat-list { flex: 1; overflow-y: auto; padding: 10px; }
         
-        /* Дизайн карточки чата */
-        .chat-item { 
-            background: var(--panel); border: 1px solid rgba(80,162,227,0.2); 
-            padding: 12px; border-radius: 12px; display: flex; align-items: center; 
-            gap: 12px; margin-bottom: 8px; cursor: pointer; transition: 0.2s;
-        }
-        .chat-item:hover { border-color: var(--blue); }
-        .ava { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; background: #242f3d; }
+        /* Боковая панель */
+        #sidePanel { width: 320px; background: var(--side); border-right: 1px solid #000; display: flex; flex-direction: column; z-index: 100; }
+        .side-header { height: 56px; display: flex; align-items: center; padding: 0 15px; gap: 15px; }
+        .search-bar { background: var(--bg); border-radius: 20px; padding: 8px 15px; margin: 0 10px 10px; font-size: 14px; color: #aaa; cursor: pointer; }
+        
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; padding: 10px 15px; gap: 12px; cursor: pointer; transition: 0.2s; }
+        .chat-item:hover { background: var(--hover); }
+        .chat-item.active { background: var(--blue); }
+        .ava { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #2b5278; flex-shrink: 0; }
+        .chat-info { flex: 1; min-width: 0; }
+        .chat-info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+        .chat-info span { font-size: 13px; color: #7f91a4; }
 
-        /* Сообщения */
-        #msgs-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg-row { display: flex; gap: 10px; max-width: 80%; }
+        /* Окно чата */
+        #chatMain { flex: 1; display: flex; flex-direction: column; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: cover; position: relative; }
+        .chat-header { height: 56px; background: var(--side); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #000; }
+        
+        #msgs-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .msg-row { display: flex; max-width: 80%; margin-bottom: 4px; animation: msgFade 0.2s ease; }
         .msg-row.my { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble { padding: 10px 15px; border-radius: 15px; background: var(--other-msg); cursor: pointer; font-size: 15px; position: relative; }
-        .my .bubble { background: var(--my-msg); border-bottom-right-radius: 2px; }
-        .bubble video { width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 2px solid var(--blue); }
-        .bubble audio { height: 35px; width: 160px; }
+        .bubble { padding: 8px 12px; border-radius: 12px; background: var(--msg-in); position: relative; font-size: 15px; line-height: 1.4; cursor: pointer; }
+        .my .bubble { background: var(--msg-my); border-bottom-right-radius: 4px; }
+        .other .bubble { border-bottom-left-radius: 4px; }
+        .msg-time { font-size: 10px; color: #7f91a4; margin-top: 4px; text-align: right; display: block; }
+        .ticks { color: var(--tg-blue); margin-left: 3px; font-weight: bold; }
+
+        /* Медиа */
+        .bubble video { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 2px solid var(--tg-blue); }
+        .bubble audio { height: 30px; width: 160px; margin-top: 5px; }
 
         /* Поле ввода */
-        .input-area { padding: 10px; background: var(--panel); display: flex; align-items: center; gap: 8px; }
-        #mInput { flex: 1; background: #242f3d; border: none; color: #fff; padding: 12px; border-radius: 20px; }
-        .btn { background: none; border: none; color: var(--blue); cursor: pointer; font-size: 20px; padding: 5px; }
+        .input-bar { background: var(--side); padding: 8px 15px; display: flex; align-items: center; gap: 10px; }
+        #mInput { flex: 1; background: transparent; border: none; color: white; font-size: 16px; padding: 10px 0; }
+
+        /* Мобильный вид */
+        @media (max-width: 768px) {
+            #sidePanel { width: 100%; position: absolute; inset: 0; }
+            #sidePanel.hidden { display: none; }
+            #chatMain { display: none; }
+            #chatMain.active { display: flex; position: absolute; inset: 0; z-index: 200; }
+        }
 
         /* Модалки */
-        .modal { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
-        .modal-header { height: 60px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; }
-        .list-item { padding: 15px; border-bottom: 1px solid #1c2835; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
+        .modal-h { height: 56px; background: var(--side); display: flex; align-items: center; padding: 0 15px; gap: 20px; }
+        .list-item { padding: 15px; border-bottom: 1px solid #232e3c; display: flex; align-items: center; gap: 15px; cursor: pointer; }
         
-        #video-record-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; display: none; text-align: center; }
-        #v-preview { width: 260px; height: 260px; border-radius: 50%; object-fit: cover; border: 4px solid var(--blue); }
-        .rec-active { color: red !important; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        #video-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000; display: none; }
+        #v-preview { width: 280px; height: 280px; border-radius: 50%; border: 4px solid var(--tg-blue); background: #000; object-fit: cover; }
+
+        @keyframes msgFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-<div id="auth-screen" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center;">
-    <div style="background:var(--panel); padding:30px; border-radius:20px; width:300px; text-align:center;">
-        <h2 id="atitle">Вход</h2>
-        <input type="text" id="auser" placeholder="Логин" style="width:100%; padding:10px; margin:5px 0; border-radius:10px; border:none; background:#242f3d; color:#fff;">
-        <input type="password" id="apass" placeholder="Пароль" style="width:100%; padding:10px; margin:5px 0; border-radius:10px; border:none; background:#242f3d; color:#fff;">
-        <button onclick="doAuth()" style="width:100%; padding:10px; margin-top:10px; border-radius:10px; border:none; background:var(--blue); color:#fff;">Продолжить</button>
-        <p onclick="isR=!isR; document.getElementById('atitle').innerText=isR?'Регистрация':'Вход'" style="cursor:pointer; color:var(--blue); font-size:12px;">Сменить режим</p>
+<div id="auth-screen">
+    <div class="auth-card">
+        <div class="tg-logo">✈️</div>
+        <h1 id="a-h">Spark</h1>
+        <p id="a-p">Введите ваш никнейм для входа.</p>
+        <input type="text" id="auser" class="auth-input" placeholder="Никнейм">
+        <input type="password" id="apass" class="auth-input" placeholder="Пароль">
+        <button class="auth-btn" onclick="doAuth()">Начать общение</button>
+        <p onclick="isR=!isR; document.getElementById('a-h').innerText=isR?'Регистрация':'Spark'" style="color:var(--tg-blue); cursor:pointer; margin-top:15px;">Создать аккаунт</p>
     </div>
 </div>
 
-<div id="video-record-overlay">
+<div id="video-overlay">
     <video id="v-preview" autoplay muted playsinline></video><br>
-    <button class="btn" style="background:rgba(0,0,0,0.6); border-radius:50%; margin-top:10px;" onclick="switchCam()">🔄</button>
+    <button onclick="switchCam()" style="background:rgba(0,0,0,0.5); border:none; color:white; padding:10px; border-radius:50%; margin:10px auto; display:block;">🔄</button>
 </div>
 
 <div id="app">
     <div id="sidePanel">
-        <div class="header">
-            <b>Spark</b>
-            <div>
-                <span class="btn" onclick="searchByShortID()">🔍</span>
-                <span class="btn" onclick="showGroupModal()">👥</span>
-                <span class="btn" onclick="toggleModal('settings-modal', true)">⚙️</span>
-            </div>
+        <div class="side-header">
+            <span onclick="toggleModal('settings-modal', true)" style="font-size:20px; cursor:pointer;">☰</span>
+            <b style="font-size:18px;">Spark</b>
         </div>
+        <div class="search-bar" onclick="searchByShortID()">Поиск по ID...</div>
         <div class="chat-list" id="chat-list"></div>
     </div>
 
     <div id="chatMain">
-        <div class="header">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span class="btn" onclick="goBack()" id="backBtn">‹</span>
-                <div onclick="openCurrentPeerProfile()" style="cursor:pointer;">
-                    <b id="chatTitle">Выберите чат</b><br>
-                    <span id="chatStatus" style="font-size:11px; color:var(--blue);"></span>
-                </div>
+        <div class="chat-header">
+            <span onclick="goBack()" id="backBtn" style="font-size:24px; cursor:pointer; color:var(--tg-blue);">‹</span>
+            <div onclick="openProfile()" style="cursor:pointer; flex:1;">
+                <b id="chatTitle">Spark Chat</b><br>
+                <span id="chatStatus" style="font-size:12px; color:var(--tg-blue);">выберите чат</span>
             </div>
+            <span onclick="showGroupModal()" style="font-size:20px; cursor:pointer;">👥</span>
         </div>
         <div id="msgs-container"></div>
-        <div class="input-area">
+        <div class="input-bar">
             <input type="file" id="fileInp" hidden onchange="upImg(this)">
-            <button class="btn" onclick="document.getElementById('fileInp').click()">🖼️</button>
-            <input type="text" id="mInput" placeholder="Сообщение...">
-            <button class="btn" id="vBtn" onclick="recVideo()">📷</button>
-            <button class="btn" id="aBtn" onclick="recVoice()">🎙️</button>
-            <button class="btn" onclick="send()">➤</button>
+            <span onclick="document.getElementById('fileInp').click()" style="font-size:24px; cursor:pointer; color:#7f91a4;">📎</span>
+            <input type="text" id="mInput" placeholder="Написать сообщение...">
+            <span id="vBtn" onclick="recVideo()" style="font-size:24px; cursor:pointer; color:#7f91a4;">📷</span>
+            <span id="aBtn" onclick="recVoice()" style="font-size:24px; cursor:pointer; color:#7f91a4;">🎙️</span>
+            <span onclick="send()" style="font-size:24px; cursor:pointer; color:var(--tg-blue);">➤</span>
         </div>
     </div>
 </div>
 
 <div id="settings-modal" class="modal">
-    <div class="modal-header"><span class="btn" onclick="toggleModal('settings-modal', false)">✕</span><b>Настройки</b></div>
-    <div class="list-item">ID: <b id="myIDDisplay"></b></div>
-    <div class="list-item" onclick="upd('nick')">Ник</div>
-    <div class="list-item" onclick="upd('bio')">О себе</div>
-    <div class="list-item" onclick="upd('ava')">Аватар (URL)</div>
-    <div class="list-item" onclick="upd('pass')">Пароль</div>
+    <div class="modal-h"><span onclick="toggleModal('settings-modal', false)">✕</span><b>Настройки</b></div>
+    <div style="text-align:center; padding:20px;" id="my-info"></div>
+    <div class="list-item" onclick="upd('nick')">👤 Изменить ник</div>
+    <div class="list-item" onclick="upd('bio')">📝 О себе</div>
+    <div class="list-item" onclick="upd('ava')">🖼️ Сменить аватар</div>
+    <div class="list-item" onclick="upd('pass')">🔑 Сменить пароль</div>
     <div class="list-item" style="color:gold" onclick="openSigma()">⚡ СИГМА ПАНЕЛЬ</div>
-    <div class="list-item" style="color:red" onclick="logout()">🚪 Выйти</div>
+    <div class="list-item" style="color:#ff595a" onclick="logout()">🚪 Выйти</div>
 </div>
 
 <div id="profile-modal" class="modal">
-    <div class="modal-header"><span class="btn" onclick="toggleModal('profile-modal', false)">✕</span><b>Профиль</b></div>
-    <div id="prof-cont" style="padding:40px; text-align:center;"></div>
+    <div class="modal-h"><span onclick="toggleModal('profile-modal', false)">✕</span><b>Информация</b></div>
+    <div id="prof-cont" style="padding:20px; text-align:center;"></div>
 </div>
 
 <div id="group-modal" class="modal">
-    <div class="modal-header"><span class="btn" onclick="toggleModal('group-modal', false)">✕</span><b>Создать группу</b></div>
+    <div class="modal-h"><span onclick="toggleModal('group-modal', false)">✕</span><b>Новая группа</b></div>
     <div id="group-users" style="flex:1; overflow-y:auto"></div>
-    <button onclick="createGroup()" style="padding:15px; background:var(--blue); border:none; color:#fff;">Создать</button>
-</div>
-
-<div id="sigma-modal" class="modal">
-    <div class="modal-header"><span class="btn" onclick="toggleModal('sigma-modal', false)">✕</span><b>SIGMA</b></div>
-    <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
+    <button class="auth-btn" onclick="createGroup()" style="border-radius:0;">СОЗДАТЬ</button>
 </div>
 
 <div id="fwd-modal" class="modal">
-    <div class="modal-header"><span class="btn" onclick="toggleModal('fwd-modal', false)">✕</span><b>Переслать в...</b></div>
+    <div class="modal-h"><span onclick="toggleModal('fwd-modal', false)">✕</span><b>Переслать</b></div>
     <div id="fwd-list" style="flex:1; overflow-y:auto"></div>
+</div>
+
+<div id="sigma-modal" class="modal">
+    <div class="modal-h"><span onclick="toggleModal('sigma-modal', false)">✕</span><b>Админ Панель</b></div>
+    <div id="sigma-list" style="flex:1; overflow-y:auto"></div>
 </div>
 
 <script>
@@ -149,32 +166,34 @@
     const db = firebase.database();
 
     let myUID = localStorage.getItem('spark_uid'), curPeer = null, isG = false, isR = false;
-    let vStream, vRec, vChunks = [], isV = false, cam = "user";
-    let aRec, isA = false;
-    let myData = {};
+    let vStream, vRec, vChunks = [], isV = false, cam = "user", aRec, isA = false, myData = {};
 
     window.onload = () => { if(!myUID) document.getElementById('auth-screen').style.display='flex'; else init(); };
 
     function init() {
         db.ref('profiles/'+myUID).on('value', s => {
             myData = s.val(); if(!myData) return;
-            document.getElementById('myIDDisplay').innerText = myData.shortID;
+            document.getElementById('my-info').innerHTML = `
+                <img src="${myData.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:80px;height:80px"><br>
+                <b>${myData.nick}</b><br><small>ID: ${myData.shortID}</small>
+            `;
             db.ref('status/'+myUID).set('онлайн');
             db.ref('status/'+myUID).onDisconnect().set('оффлайн');
         });
 
-        // Загрузка чатов
+        // Загрузка чатов в стиле ТГ
         db.ref('friends/'+myUID).on('value', s => {
             const list = document.getElementById('chat-list');
             list.innerHTML = `<div class="chat-item" onclick="openChat('global', false)">
-                <div class="ava" style="display:flex;align-items:center;justify-content:center;color:#fff;background:var(--blue)">🌐</div>
-                <div><b>Общий чат</b><br><small id="g-onl">...</small></div>
+                <div class="ava" style="background:var(--tg-blue);display:flex;align-items:center;justify-content:center;">🌐</div>
+                <div class="chat-info"><b>Общий чат</b><span id="g-onl">...</span></div>
             </div>`;
             
-            db.ref('status').on('value', st => {
-                let count = 0; st.forEach(x => { if(x.val()==='онлайн') count++; });
-                if(document.getElementById('g-onl')) document.getElementById('g-onl').innerText = count + " онлайн";
-            });
+            // Чат с самим собой (Избранное)
+            list.innerHTML += `<div class="chat-item" onclick="openChat('${myUID}', false)">
+                <div class="ava" style="background:#50a2e3;display:flex;align-items:center;justify-content:center;">🔖</div>
+                <div class="chat-info"><b>Избранное</b><span>Заметки</span></div>
+            </div>`;
 
             s.forEach(f => {
                 const isGroup = f.val().isGroup;
@@ -185,7 +204,7 @@
                     item.onclick = () => openChat(f.key, isGroup);
                     item.innerHTML = `
                         <img src="${isGroup ? 'https://cdn-icons-png.flaticon.com/512/32/32441.png' : (d.ava || 'https://cdn-icons-png.flaticon.com/512/149/149071.png')}" class="ava">
-                        <div><b>${isGroup ? d.name : d.nick}</b><br><small class="st-${f.key}">${isGroup?'группа':''}</small></div>
+                        <div class="chat-info"><b>${isGroup ? d.name : d.nick}</b><span class="st-${f.key}">${isGroup?'группа':''}</span></div>
                     `;
                     list.appendChild(item);
                     if(!isGroup) db.ref('status/'+f.key).on('value', sn => {
@@ -199,40 +218,70 @@
 
     function openChat(id, groupMode) {
         curPeer = id === 'global' ? null : id; isG = groupMode;
-        if(window.innerWidth <= 768) document.getElementById('sidePanel').classList.add('hidden');
+        if(window.innerWidth <= 768) {
+            document.getElementById('sidePanel').classList.add('hidden');
+            document.getElementById('chatMain').classList.add('active');
+        }
         
         const cont = document.getElementById('msgs-container'); cont.innerHTML = '';
         const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages';
         
-        if(!curPeer) {
-            document.getElementById('chatTitle').innerText = "Общий чат";
-            document.getElementById('chatStatus').innerText = "все пользователи";
-        } else {
-            db.ref(isG ? 'groups/'+id : 'profiles/'+id).once('value', p => {
-                document.getElementById('chatTitle').innerText = isG ? p.val().name : p.val().nick;
-                if(!isG) db.ref('status/'+id).on('value', s => { document.getElementById('chatStatus').innerText = s.val() || 'оффлайн'; });
-            });
-        }
+        db.ref(isG ? 'groups/'+id : 'profiles/'+id).once('value', p => {
+            if(id === 'global') document.getElementById('chatTitle').innerText = "Общий чат";
+            else if(id === myUID) document.getElementById('chatTitle').innerText = "Избранное";
+            else document.getElementById('chatTitle').innerText = isG ? p.val().name : p.val().nick;
+        });
 
         db.ref(path).off();
         db.ref(path).limitToLast(50).on('child_added', snap => {
             const m = snap.val();
             const row = document.createElement('div');
-            row.className = `msg-row ${m.u === myUID ? 'my' : ''}`;
-            let fwd = m.fwd ? `<div style="font-size:10px; opacity:0.6">↪ Переслано от ${m.fwd}</div>` : '';
-            let body = m.t === 'img' ? `<img src="${m.m}" style="max-width:200px; border-radius:10px;">` :
+            row.className = `msg-row ${m.u === myUID ? 'my' : 'other'}`;
+            let fwd = m.fwd ? `<div style="font-size:11px; color:var(--tg-blue); font-weight:bold;">↪ Переслано от ${m.fwd}</div>` : '';
+            let body = m.t === 'img' ? `<img src="${m.m}" style="max-width:240px; border-radius:10px;">` :
                        m.t === 'vid' ? `<video src="${m.m}" autoplay loop muted playsinline></video>` :
                        m.t === 'voice' ? `<audio src="${m.m}" controls></audio>` : `<span>${m.m}</span>`;
             
-            row.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="ava i-${m.u}" style="width:30px;height:30px;" onclick="showUser('${m.u}')">
-                             <div class="bubble" onclick="msgMenu('${snap.key}','${m.u}','${m.m}','${m.t}')">${fwd}${body}</div>`;
+            const time = new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            row.innerHTML = `<div class="bubble" onclick="msgMenu('${snap.key}','${m.u}','${m.m}','${m.t}')">
+                                ${fwd}${body}
+                                <span class="msg-time">${time} ${m.u===myUID?'<span class="ticks">✓✓</span>':''}</span>
+                             </div>`;
             cont.appendChild(row);
             cont.scrollTop = cont.scrollHeight;
-            db.ref('profiles/'+m.u).once('value', p => { if(p.val() && p.val().ava) document.querySelectorAll('.i-'+m.u).forEach(i=>i.src=p.val().ava); });
         });
     }
 
-    // Сообщения и пересылка
+    // ТВОИ ФУНКЦИИ (Кружки, Голос, Пересылка)
+    async function recVideo() {
+        if(!isV) {
+            vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cam}, audio:true});
+            document.getElementById('v-preview').srcObject = vStream;
+            document.getElementById('video-overlay').style.display='block';
+            vRec = new MediaRecorder(vStream); vChunks = [];
+            vRec.ondataavailable = e => vChunks.push(e.data);
+            vRec.onstop = () => {
+                const r = new FileReader(); r.readAsDataURL(new Blob(vChunks, {type:'video/mp4'}));
+                r.onload = () => sendMedia(r.result, 'vid');
+                vStream.getTracks().forEach(t=>t.stop());
+                document.getElementById('video-overlay').style.display='none';
+            };
+            vRec.start(); isV=true; document.getElementById('vBtn').style.color='red';
+        } else { vRec.stop(); isV=false; document.getElementById('vBtn').style.color='#7f91a4'; }
+    }
+
+    function send() {
+        if(isV) { recVideo(); return; }
+        const v = document.getElementById('mInput').value.trim();
+        if(!v) return;
+        sendMedia(v, 'txt'); document.getElementById('mInput').value = '';
+    }
+
+    function sendMedia(m, t) {
+        const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages';
+        db.ref(path).push({u:myUID, m:m, t:t, time:Date.now()});
+    }
+
     function msgMenu(id, u, m, t) {
         if(u === myUID) {
             if(confirm("Переслать? (Отмена - Удалить)")) openFwd(m, t, myData.nick);
@@ -246,139 +295,24 @@
         const list = document.getElementById('fwd-list'); list.innerHTML = '';
         db.ref('friends/'+myUID).once('value', s => {
             s.forEach(f => {
-                const item = document.createElement('div'); item.className = 'list-item';
-                item.innerText = f.key; // Для простоты
-                item.onclick = () => {
-                    const path = f.val().isGroup ? 'group_msgs/'+f.key : 'privates/'+[myUID, f.key].sort().join('_');
-                    db.ref(path).push({u:myUID, m:m, t:t, fwd:from, time:Date.now()});
+                const d = document.createElement('div'); d.className = 'list-item'; d.innerText = "Чат: " + f.key;
+                d.onclick = () => {
+                    const p = f.val().isGroup ? 'group_msgs/'+f.key : 'privates/'+[myUID, f.key].sort().join('_');
+                    db.ref(p).push({u:myUID, m:m, t:t, fwd:from, time:Date.now()});
                     toggleModal('fwd-modal', false);
                 };
-                list.appendChild(item);
+                list.appendChild(d);
             });
             toggleModal('fwd-modal', true);
         });
     }
 
-    // Кружки и Голос
-    async function recVideo() {
-        if(!isV) {
-            vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cam}, audio:true});
-            document.getElementById('v-preview').srcObject = vStream;
-            document.getElementById('video-record-overlay').style.display='block';
-            vRec = new MediaRecorder(vStream); vChunks = [];
-            vRec.ondataavailable = e => vChunks.push(e.data);
-            vRec.onstop = () => {
-                const reader = new FileReader(); reader.readAsDataURL(new Blob(vChunks, {type:'video/mp4'}));
-                reader.onload = () => sendMedia(reader.result, 'vid');
-                vStream.getTracks().forEach(t=>t.stop());
-                document.getElementById('video-record-overlay').style.display='none';
-            };
-            vRec.start(); isV=true; document.getElementById('vBtn').classList.add('rec-active');
-        } else { vRec.stop(); isV=false; document.getElementById('vBtn').classList.remove('rec-active'); }
-    }
-
-    async function switchCam() {
-        if(!isV) return;
-        cam = cam === "user" ? "environment" : "user";
-        vStream.getTracks().forEach(t=>t.stop());
-        vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cam}, audio:true});
-        document.getElementById('v-preview').srcObject = vStream;
-        // Переподключение трека в рекордер
-        const videoTrack = vStream.getVideoTracks()[0];
-        const sender = vRec.stream.getVideoTracks()[0];
-        vRec.stream.removeTrack(sender); vRec.stream.addTrack(videoTrack);
-    }
-
-    async function recVoice() {
-        if(!isA) {
-            const s = await navigator.mediaDevices.getUserMedia({audio:true});
-            aRec = new MediaRecorder(s); vChunks = [];
-            aRec.ondataavailable = e => vChunks.push(e.data);
-            aRec.onstop = () => {
-                const r = new FileReader(); r.readAsDataURL(new Blob(vChunks));
-                r.onload = () => sendMedia(r.result, 'voice');
-            };
-            aRec.start(); isA=true; document.getElementById('aBtn').classList.add('rec-active');
-        } else { aRec.stop(); isA=false; document.getElementById('aBtn').classList.remove('rec-active'); }
-    }
-
-    function send() {
-        if(isV) { recVideo(); return; }
-        if(isA) { recVoice(); return; }
-        const val = document.getElementById('mInput').value.trim();
-        if(!val) return;
-        sendMedia(val, 'txt'); document.getElementById('mInput').value = '';
-    }
-
-    function sendMedia(m, t) {
-        const path = curPeer ? (isG ? 'group_msgs/'+curPeer : 'privates/'+[myUID, curPeer].sort().join('_')) : 'messages';
-        db.ref(path).push({u:myUID, m:m, t:t, time:Date.now()});
-    }
-
-    // Сигма и Профили
-    function openSigma() {
-        if(prompt("Код:") === '1234567891011121314151617181920') {
-            const l = document.getElementById('sigma-list'); l.innerHTML = '';
-            db.ref('profiles').once('value', s => {
-                s.forEach(u => {
-                    const d = document.createElement('div'); d.className = 'list-item';
-                    d.innerHTML = `${u.val().nick} <button onclick="localStorage.setItem('spark_uid','${u.key}');location.reload()">Вход</button>`;
-                    l.appendChild(d);
-                });
-                toggleModal('sigma-modal', true);
-            });
-        }
-    }
-
-    function showUser(uid) {
-        db.ref('profiles/'+uid).once('value', s => {
-            const p = s.val();
-            document.getElementById('prof-cont').innerHTML = `
-                <img src="${p.ava||'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="ava" style="width:100px;height:100px">
-                <h2>${p.nick}</h2><p>ID: ${p.shortID}</p><p>${p.bio||'spark user'}</p>
-                <button onclick="toggleModal('profile-modal',false);openChat('${uid}',false)" style="padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;">Написать</button>
-            `;
-            toggleModal('profile-modal', true);
-        });
-    }
-
-    function searchByShortID() {
-        const id = prompt("Введите ID:"); if(!id) return;
-        db.ref('shortIDs/'+id).once('value', s => {
-            if(s.exists()) {
-                const target = s.val();
-                db.ref('friends/'+myUID+'/'+target).set({isGroup:false});
-                db.ref('friends/'+target+'/'+myUID).set({isGroup:false});
-                openChat(target, false);
-            } else alert("Не найден");
-        });
-    }
-
-    function showGroupModal() {
-        const cont = document.getElementById('group-users'); cont.innerHTML = '';
-        window.selUsers = [];
-        db.ref('profiles').once('value', s => {
-            s.forEach(u => { if(u.key !== myUID) {
-                const d = document.createElement('div'); d.className = 'list-item'; d.innerHTML = `${u.val().nick} <input type="checkbox" onchange="if(this.checked) selUsers.push('${u.key}'); else selUsers.splice(selUsers.indexOf('${u.key}'),1)">`;
-                cont.appendChild(d);
-            }});
-            toggleModal('group-modal', true);
-        });
-    }
-
-    function createGroup() {
-        const name = prompt("Имя группы:"); if(!name) return;
-        const gid = 'g'+Date.now();
-        db.ref('groups/'+gid).set({name: name, owner: myUID});
-        [...selUsers, myUID].forEach(u => db.ref('friends/'+u+'/'+gid).set({isGroup:true}));
-        toggleModal('group-modal', false);
-    }
-
+    // РЕГИСТРАЦИЯ И АДМИНКА
     function doAuth() {
         const u = document.getElementById('auser').value.toLowerCase().trim(), p = document.getElementById('apass').value;
         if(isR) {
             const uid = 'u'+Date.now(), sid = 'id'+Math.floor(10000+Math.random()*90000);
-            db.ref('profiles/'+uid).set({nick:u, pass:p, shortID:sid, bio:'spark', ava:''});
+            db.ref('profiles/'+uid).set({nick:u, pass:p, shortID:sid, bio:'spark user', ava:''});
             db.ref('nick_to_id/'+u).set(uid); db.ref('shortIDs/'+sid).set(uid);
             localStorage.setItem('spark_uid', uid); location.reload();
         } else {
@@ -390,12 +324,32 @@
         }
     }
 
-    function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
-    function goBack() { document.getElementById('sidePanel').classList.remove('hidden'); }
-    function logout() { localStorage.clear(); location.reload(); }
-    function upd(k) { const v = prompt("Новое значение:"); if(v) db.ref('profiles/'+myUID+'/'+k).set(v); }
-    function upImg(i) { const f = i.files[0]; if(f) { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => sendMedia(r.result, 'img'); } }
-    function openCurrentPeerProfile() { if(curPeer && !isG) showUser(curPeer); }
-</script>
-</body>
-</html>
+    function openSigma() {
+        if(prompt("Код:") === '1234567891011121314151617181920') {
+            const l = document.getElementById('sigma-list'); l.innerHTML = '';
+            db.ref('profiles').once('value', s => {
+                s.forEach(u => {
+                    const d = document.createElement('div'); d.className = 'list-item';
+                    d.innerHTML = `<span>${u.val().nick}</span> <button onclick="localStorage.setItem('spark_uid','${u.key}');location.reload()">Войти</button>`;
+                    l.appendChild(d);
+                });
+                toggleModal('sigma-modal', true);
+            });
+        }
+    }
+
+    function searchByShortID() {
+        const id = prompt("Введите ID пользователя:"); if(!id) return;
+        db.ref('shortIDs/'+id).once('value', s => {
+            if(s.exists()) {
+                const target = s.val();
+                db.ref('friends/'+myUID+'/'+target).set({isGroup:false});
+                db.ref('friends/'+target+'/'+myUID).set({isGroup:false});
+                openChat(target, false);
+            } else alert("Пользователь не найден");
+        });
+    }
+
+    function goBack() { 
+        document.getElementById('sidePanel').classList.remove('hidden'); 
+        document.getElementById('chatMain').classList.remove('active
